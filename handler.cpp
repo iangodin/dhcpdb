@@ -36,7 +36,7 @@ void extractOptions( packet *p, std::vector<std::string> &opts )
 			if ( options[0] != 0 )
 			{
 				size_t n = options[1];
-				opts.push_back( std::string( reinterpret_cast<const char *>( options ), n ) );
+				opts.push_back( std::string( reinterpret_cast<const char *>( options ), n + 2 ) );
 				options += ( 2 + options[1] );
 			}
 			else
@@ -136,16 +136,16 @@ void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip,
 
 		// Add the hostname
 		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
-		if ( !hostname.empty() )
-			tmp.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
-
-		std::sort( tmp.begin(), tmp.end() );
-
 		for ( std::string &o: tmp )
 		{
 			if ( o.empty() )
 				continue;
+
+			if ( o[0] == DOP_HOSTNAME )
+			{
+				hostname = o;
+				continue;
+			}
 
 			if ( o[0] == DOP_IP_ADDRESS_LEASETIME )
 			{
@@ -162,6 +162,17 @@ void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip,
 			if ( requested.find( o[0] ) != requested.end() )
 				options.push_back( o );
 		}
+
+		if ( hostname.empty() )
+		{
+			try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
+			if ( !hostname.empty() )
+				options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+		}
+		else
+			options.push_back( hostname );
+
+		std::sort( options.begin(), options.end() );
 	}
 
 	if ( server.empty() )
@@ -248,17 +259,17 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 
 		// Add the hostname
 		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
-		if ( !hostname.empty() )
-			tmp.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
-
-		// Sort and pick out the requested options.
-		std::sort( tmp.begin(), tmp.end() );
 
 		for ( std::string &o: tmp )
 		{
 			if ( o.empty() )
 				continue;
+
+			if ( o[0] == DOP_HOSTNAME )
+			{
+				hostname = o;
+				continue;
+			}
 
 			if ( o[0] == DOP_IP_ADDRESS_LEASETIME )
 			{
@@ -275,6 +286,17 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 			if ( requested.find( o[0] ) != requested.end() )
 				options.push_back( o );
 		}
+		
+		if ( hostname.empty() )
+		{
+			try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
+			if ( !hostname.empty() )
+				options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+		}
+		else
+			options.push_back( hostname );
+
+		std::sort( options.begin(), options.end() );
 	}
 
 	if ( server.empty() )

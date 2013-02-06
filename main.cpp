@@ -107,10 +107,21 @@ int main( int argc, char *argv[] )
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		std::vector<std::string> options;
 		getOptions( ip, options );
-		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
-		if ( !hostname.empty() )
-			options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+		bool addhost = true;
+		for ( std::string &o: options )
+		{
+			if ( o.empty() )
+				continue;
+			if ( o[0] == DOP_HOSTNAME )
+				addhost = false;
+		}
+		if ( addhost )
+		{
+			std::string hostname;
+			try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
+			if ( !hostname.empty() )
+				options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+		}
 		std::sort( options.begin(), options.end() );
 		for ( const std::string &o: options )
 			std::cout << print_options( o ) << '\n';
