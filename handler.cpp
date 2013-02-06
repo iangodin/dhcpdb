@@ -64,7 +64,7 @@ void fillOptions( packet *p, const std::vector<std::string> &opts )
 
 		if ( o[0] == DOP_TFTP_SERVERNAME )
 		{
-			p->siaddr = htonl( dns_lookup( &o[2] ) );
+			p->siaddr = dns_lookup( &o[2] );
 			continue;
 		}
 
@@ -84,7 +84,7 @@ void fillOptions( packet *p, const std::vector<std::string> &opts )
 
 ////////////////////////////////////////
 
-void replyDiscover( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, uint32_t server_ip, const char *hostname )
+void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, const char *hostname )
 {
 	// Find the requested parameter list.
 	std::set<char> requested;
@@ -183,7 +183,8 @@ void replyDiscover( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, u
 	fillOptions( reply, options );
 
 	// Send the packet
-	sock.send( 0xFFFFFFFF, reply );
+	udp_socket client( server_ip );
+	client.send( 0xFFFFFFFF, reply );
 
 	IPAddr client_ip;
 	client_ip.addr = reply->yiaddr;
@@ -196,15 +197,8 @@ void replyDiscover( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, u
 
 ////////////////////////////////////////
 
-void replyRequest( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, uint32_t server_ip, const char *hostname )
+void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, const char *hostname )
 {
-	// Is it for this server?
-	if ( server_ip != myip.addr )
-	{
-		syslog( LOG_INFO, "Request for another server" );
-		return;
-	}
-	
 	// Find the requested parameter list.
 	std::set<char> requested;
 	{
@@ -321,22 +315,21 @@ void replyRequest( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, ui
 	fillOptions( reply, options );
 
 	std::cout << "REPLY\n" << reply << std::endl;
-	sock.send( 0xFFFFFFFF, reply );
+	udp_socket client( server_ip );
+	client.send( 0xFFFFFFFF, reply );
 
-	IPAddr client_ip;
-	client_ip.addr = reply->yiaddr;
 	uint8_t *hwaddr = reply->chaddr;
 
 	if ( leased )
 	{
-		syslog( LOG_INFO, "Leased %d.%d.%d.%d to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
-				client_ip.bytes[3], client_ip.bytes[2], client_ip.bytes[1], client_ip.bytes[0],
+		syslog( LOG_INFO, "Leased %s to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
+				ip_lookup( reply->yiaddr ).c_str(),
 				hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 	}
 	else
 	{
-		syslog( LOG_INFO, "Refused %d.%d.%d.%d to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
-				client_ip.bytes[3], client_ip.bytes[2], client_ip.bytes[1], client_ip.bytes[0],
+		syslog( LOG_INFO, "Refused %s to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
+				ip_lookup( reply->yiaddr ).c_str(),
 				hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 	}
 
@@ -345,7 +338,7 @@ void replyRequest( packet *p, udp_socket &sock, packet_queue &q, uint32_t ip, ui
 
 ////////////////////////////////////////
 
-void handleClientRequest( packet *p, uint32_t server_addr, udp_socket &sock, packet_queue &queue )
+void handleClientRequest( packet *p, uint32_t server_addr, packet_queue &queue )
 {
 	// Basic checks on the packet
 	if ( p->htype != HWADDR_ETHER )
@@ -423,7 +416,7 @@ void handleClientRequest( packet *p, uint32_t server_addr, udp_socket &sock, pac
 	{
 		case DHCP_DISCOVER:
 			syslog( LOG_INFO, "Got DISCOVER from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
-			replyDiscover( p, sock, queue, ipaddr, server_addr, hostname );
+			replyDiscover( p, queue, ipaddr, server_addr, hostname );
 			break;
 
 		case DHCP_REQUEST:
@@ -431,7 +424,7 @@ void handleClientRequest( packet *p, uint32_t server_addr, udp_socket &sock, pac
 			{
 				syslog( LOG_INFO, "Got REQUEST from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x' (for '%s' aka '%s')",
 						hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5], ip_lookup( ipaddr ).c_str(), hostname );
-				replyRequest( p, sock, queue, ipaddr, server_addr, hostname );
+				replyRequest( p, queue, ipaddr, server_addr, hostname );
 			}
 			break;
 
@@ -458,7 +451,7 @@ void handleClientRequest( packet *p, uint32_t server_addr, udp_socket &sock, pac
 
 ////////////////////////////////////////
 
-void handler( uint32_t server_addr, udp_socket &sock, packet_queue &queue )
+void handler( uint32_t server_addr, packet_queue &queue )
 {
 	try
 	{
@@ -476,7 +469,7 @@ void handler( uint32_t server_addr, udp_socket &sock, packet_queue &queue )
 		{
 			// Process the packet
 			if ( p->op == BOOT_REQUEST )
-				handleClientRequest( p, server_addr, sock, queue );
+				handleClientRequest( p, server_addr, queue );
 			else if ( p->op == BOOT_REPLY )
 			{
 				; // Ignore replies for now (always?)

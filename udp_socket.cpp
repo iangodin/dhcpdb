@@ -3,6 +3,7 @@
 #include "guard.h"
 #include "error.h"
 #include "packet.h"
+#include "format.h"
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -106,20 +107,16 @@ udp_socket::udp_socket( uint32_t addr, uint64_t port )
 	if ( setsockopt( _fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) ) != 0 )
 		error( errno, "Error reusing address" );
 
-	// Turn on broadcasting
-	if ( setsockopt( _fd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt) ) != 0 )
-		error( errno, "Could not set broadcast" );
-
 	// Bind the socket
 	struct sockaddr_in servaddr;
 	size_t servsize = sizeof(servaddr);
 	memset( (void *)(&servaddr), 0, servsize );
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl( addr );
+	servaddr.sin_addr.s_addr = addr;
 	servaddr.sin_port = htons( port );
 
 	if ( ::bind( _fd, (struct sockaddr *)&servaddr, servsize ) != 0 )
-		error( errno, "Error binding socket" );
+		error( errno, format( "Error binding socket ({0})", ip_lookup( addr ) ) );
 
 	guard.commit();
 }
@@ -149,7 +146,7 @@ udp_socket::udp_socket( uint32_t addr )
 	size_t servsize = sizeof(servaddr);
 	memset( (void *)(&servaddr), 0, servsize );
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl( addr );
+	servaddr.sin_addr.s_addr = addr;
 	servaddr.sin_port = htons( 67 );
 	if ( ::bind( _fd, (struct sockaddr *)&servaddr, servsize ) != 0 )
 		error( errno, "Error binding socket" );

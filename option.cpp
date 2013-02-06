@@ -68,9 +68,8 @@ std::string parse_option( const std::string &opt )
 				error( format( "Expected an IP address for option {0}", name ) );
 			ret.push_back( 4 );
 
-			IPAddr ip;
-			ip.addr = htonl( dns_lookup( args[0].c_str() ) );
-			ret.append( std::string( (char*)ip.bytes, 4 ) );
+			uint32_t ip = dns_lookup( args[0].c_str() );
+			ret.append( std::string( reinterpret_cast<const char*>(&ip), 4 ) );
 			break;
 		}
 
@@ -80,11 +79,10 @@ std::string parse_option( const std::string &opt )
 				error( format( "Expected IP addresses for option {0}", name ) );
 			ret.push_back( 4 * args.size() );
 
-			IPAddr ip;
 			for ( std::string &a: args )
 			{
-				ip.addr = htonl( dns_lookup( a.c_str() ) );
-				ret.append( std::string( (char*)ip.bytes, 4 ) );
+				uint32_t ip = dns_lookup( a.c_str() );
+				ret.append( reinterpret_cast<const char*>(&ip), 4 );
 			}
 			break;
 		}
@@ -106,10 +104,8 @@ std::string parse_option( const std::string &opt )
 				error( format( "Expected a number for option {0}", name ) );
 			ret.push_back( 4 );
 
-			IPAddr ip;
-			uint32_t n = std::stoul( args[0] );
-			ip.addr = htonl( std::stoul( args[0] ) );
-			ret.append( reinterpret_cast<const char *>(ip.bytes), 4 );
+			uint32_t ip = std::stoul( args[0] );
+			ret.append( reinterpret_cast<const char *>(&ip), 4 );
 			break;
 		}
 
@@ -119,10 +115,8 @@ std::string parse_option( const std::string &opt )
 				error( format( "Expected a number for option {0}", name ) );
 			ret.push_back( 2 );
 
-			uint16_t n = std::stoul( args[0] );
-			n = htons( n );
-			ret.push_back( ( n >> 8 ) & 0xFF );
-			ret.push_back( ( n ) & 0xFF );
+			uint16_t n = htons( std::stoul( args[0] ) );
+			ret.append( reinterpret_cast<const char*>( &n ), 2 );
 			break;
 		}
 

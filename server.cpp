@@ -68,7 +68,7 @@ int server( void )
 
 		packet_queue queue;
 		for ( size_t t = 0; t < NUM_THREADS; ++t )
-			threads.push_back( std::thread( std::bind( &handler, server_address, std::ref( s ), std::ref( queue ) ) ) );
+			threads.push_back( std::thread( std::bind( &handler, server_address, std::ref( queue ) ) ) );
 
 		while ( 1 )
 		{

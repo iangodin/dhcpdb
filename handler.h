@@ -27,7 +27,7 @@ class packet_queue;
 
 ////////////////////////////////////////
 
-void handler( uint32_t server_addr, udp_socket &sock, packet_queue &queue );
+void handler( uint32_t server_addr, packet_queue &queue );
 
 ////////////////////////////////////////
 
