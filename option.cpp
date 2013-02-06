@@ -93,7 +93,13 @@ std::string parse_option( const std::string &opt )
 
 		case TYPE_STRING:
 			if ( args.size() != 1 )
-				error( format( "Expected a string for option {0}", name ) );
+			{
+				for ( size_t i = 1; i < args.size(); ++i )
+				{
+					args[0].push_back( ',' );
+					args[0].append( args[i] );
+				}
+			}
 			ret.push_back( args[0].size() );
 			ret.append( args[0] );
 			break;
@@ -151,8 +157,9 @@ std::string parse_option( const std::string &opt )
 		{
 			if ( args.size() != 1 )
 				error( format( "Expected hex string for option {0}", name ) );
-			ret.push_back( args.size() );
-			ret.append( from_hex( opt.substr( 2 ) ) );
+			std::string hex = from_hex( args[0] );
+			ret.push_back( hex.size() );
+			ret.append( hex );
 			break;
 		}
 		default:
