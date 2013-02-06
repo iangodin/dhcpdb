@@ -45,7 +45,10 @@ void getOptions( uint32_t ip, std::vector<std::string> &options );
 ////////////////////////////////////////
 
 void addHost( uint32_t ip, const uint8_t *mac );
+void removeHost( uint32_t ip );
+
 void addOption( uint32_t ip1, uint32_t ip2, const std::string &option );
+void removeOption( uint32_t ip1, uint32_t ip2, const std::string &option );
 
 ////////////////////////////////////////
 

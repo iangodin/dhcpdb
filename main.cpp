@@ -28,7 +28,9 @@ void print_usage( const std::string &prog )
 	std::cout << "  server - start a server\n";
 	std::cout << "  show <ip> - show options for <ip>\n";
 	std::cout << "  option <ip> <ip> <option> - add option for IP range\n";
+	std::cout << "  remove-option <ip> <ip> <option> - remove option for IP range\n";
 	std::cout << "  host <ip> <mac> - add option for IP range\n";
+	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
 	std::cout << "  list <mac> - list IP addresses for a MAC address\n";
 	std::cout << "  available <mac> - list available IP addresses for a MAC address\n";
 	std::cout << "  encode <option> - encode the option into a hex string\n";
@@ -106,7 +108,7 @@ int main( int argc, char *argv[] )
 		std::vector<std::string> options;
 		getOptions( ip, options );
 		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false ); } catch ( ... ) {}
+	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
 		if ( !hostname.empty() )
 			options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
 		std::sort( options.begin(), options.end() );
@@ -125,6 +127,16 @@ int main( int argc, char *argv[] )
 		std::string opt = parse_option( command[3] );
 		addOption( ip1, ip2, opt );
 	}
+	else if ( command[0] == "remove-option" )
+	{
+		if ( command.size() != 4 )
+			error( "Command 'remove-option' needs 3 arguments: remove-option <ip> <ip> <option>" );
+
+		uint32_t ip1 = dns_lookup( command[1].c_str() );
+		uint32_t ip2 = dns_lookup( command[2].c_str() );
+		std::string opt = parse_option( command[3] );
+		removeOption( ip1, ip2, opt );
+	}
 	else if ( command[0] == "host" )
 	{
 		if ( command.size() != 3 )
@@ -133,6 +145,14 @@ int main( int argc, char *argv[] )
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		std::string mac = parse_mac( command[2] );
 		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
+	}
+	else if ( command[0] == "remove-host" )
+	{
+		if ( command.size() != 2 )
+			error( "Command 'remove-host' needs 1 arguments: remove-host <ip>" );
+
+		uint32_t ip = dns_lookup( command[1].c_str() );
+		removeHost( ip );
 	}
 	else if ( command[0] == "list" )
 	{

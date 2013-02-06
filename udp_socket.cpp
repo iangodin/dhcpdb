@@ -68,7 +68,7 @@ uint32_t dns_lookup( const char *name )
 
 ////////////////////////////////////////
 
-std::string ip_lookup( uint32_t ip, bool numeric )
+std::string ip_lookup( uint32_t ip, bool numeric, bool fqdn )
 {
 	char node[NI_MAXHOST];
 
@@ -77,8 +77,13 @@ std::string ip_lookup( uint32_t ip, bool numeric )
 	sa.sin_addr.s_addr = ip;
 
 	int err = EAI_AGAIN;
+	int flags = 0;
+	if ( !numeric )
+		flags |= NI_NAMEREQD;
+	if ( !fqdn )
+		flags |= NI_NOFQDN;
 	while ( err == EAI_AGAIN )
-		err = getnameinfo( (struct sockaddr*)&sa, sizeof(sa), node, sizeof(node), NULL, 0, NI_NAMEREQD );
+		err = getnameinfo( (struct sockaddr*)&sa, sizeof(sa), node, sizeof(node), NULL, 0, NI_NOFQDN );
 
 	if ( err != 0 )
 	{

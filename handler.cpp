@@ -136,7 +136,7 @@ void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip,
 
 		// Add the hostname
 		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false ); } catch ( ... ) {}
+	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
 		if ( !hostname.empty() )
 			tmp.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
 
@@ -248,7 +248,7 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 
 		// Add the hostname
 		std::string hostname;
-	   	try { hostname = ip_lookup( ip, false ); } catch ( ... ) {}
+	   	try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
 		if ( !hostname.empty() )
 			tmp.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
 

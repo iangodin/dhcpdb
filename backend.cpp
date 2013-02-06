@@ -181,6 +181,20 @@ void addHost( uint32_t ip, const uint8_t *mac )
 
 ////////////////////////////////////////
 
+void removeHost( uint32_t ip )
+{
+	std::unique_lock<std::mutex> lock( db_mutex );
+	MYSQL *db = dbs[std::this_thread::get_id()];
+	lock.unlock();
+
+	std::string query = format( "DELETE FROM dhcp_host WHERE ip_addr = {0}", ntohl( ip ) );
+
+	if ( mysql_query( db, query.c_str() ) != 0 )
+		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
+}
+
+////////////////////////////////////////
+
 void addOption( uint32_t ip1, uint32_t ip2, const std::string &opt )
 {
 	std::unique_lock<std::mutex> lock( db_mutex );
@@ -190,6 +204,21 @@ void addOption( uint32_t ip1, uint32_t ip2, const std::string &opt )
 	std::string query = format(
 		"INSERT INTO dhcp_options ( ip_addr_from, ip_addr_to, options )"
 			"VALUES( {0}, {1}, x'{2,B16,f0,w2}' )",
+		ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ) );
+
+	if ( mysql_query( db, query.c_str() ) != 0 )
+		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
+}
+
+////////////////////////////////////////
+
+void removeOption( uint32_t ip1, uint32_t ip2, const std::string &opt )
+{
+	std::unique_lock<std::mutex> lock( db_mutex );
+	MYSQL *db = dbs[std::this_thread::get_id()];
+	lock.unlock();
+
+	std::string query = format( "DELETE FROM dhcp_options WHERE ip_addr_from={0} AND ip_addr_to={1} AND options=x'{2,B16,f0,w2}'",
 		ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ) );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
