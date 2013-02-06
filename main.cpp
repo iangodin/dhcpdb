@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <algorithm>
+
 #include <arpa/inet.h>
 
 #include "config.h"
@@ -13,6 +15,7 @@
 #include "format.h"
 #include "server.h"
 #include "udp_socket.h"
+#include "packet.h"
 
 ////////////////////////////////////////
 
@@ -102,6 +105,11 @@ int main( int argc, char *argv[] )
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		std::vector<std::string> options;
 		getOptions( ip, options );
+		std::string hostname;
+	   	try { hostname = ip_lookup( ip, false ); } catch ( ... ) {}
+		if ( !hostname.empty() )
+			options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+		std::sort( options.begin(), options.end() );
 		for ( const std::string &o: options )
 			std::cout << print_options( o ) << '\n';
 		if ( options.empty() )

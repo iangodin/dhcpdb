@@ -21,8 +21,6 @@
 
 std::mutex printmutex;
 
-IPAddr myip;
-
 ////////////////////////////////////////
 
 void extractOptions( packet *p, std::vector<std::string> &opts )
@@ -214,8 +212,6 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 		}
 	}
 
-	std::cout << "IP REQUEST = " << ip << std::endl;
-
 	// Find an IP address (prefer the one given, if any)
 	{
 		const uint8_t *hwaddr = p->chaddr;
@@ -286,10 +282,7 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 		// Use the current server IP by default.
 		server.push_back( DOP_SERVER_IDENTIFIER );
 		server.push_back( 4 );
-		server.push_back( myip.bytes[3] );
-		server.push_back( myip.bytes[2] );
-		server.push_back( myip.bytes[1] );
-		server.push_back( myip.bytes[0] );
+		server.append( reinterpret_cast<const char*>( &server_ip ), 4 );
 	}
 
 	// Add mandatory options
@@ -314,7 +307,6 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 
 	fillOptions( reply, options );
 
-	std::cout << "REPLY\n" << reply << std::endl;
 	udp_socket client( server_ip );
 	client.send( 0xFFFFFFFF, reply );
 

@@ -143,7 +143,7 @@ void getOptions( uint32_t ip, std::vector<std::string> &options )
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query = format( "SELECT options FROM dhcp_options WHERE ( {0} >= ip_addr_from AND {0} <= ip_addr_to )", ip );
+	std::string query = format( "SELECT options FROM dhcp_options WHERE ( {0} >= ip_addr_from AND {0} <= ip_addr_to )", ntohl( ip ) );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
@@ -173,7 +173,7 @@ void addHost( uint32_t ip, const uint8_t *mac )
 	std::string query = format(
 		"INSERT INTO dhcp_host ( ip_addr, mac_addr )"
 			"VALUES( {0}, x'{1,B16,f0,w2}' )",
-		ip, as_hex<uint8_t>( mac, 6 ) );
+		ntohl( ip ), as_hex<uint8_t>( mac, 6 ) );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
@@ -190,7 +190,7 @@ void addOption( uint32_t ip1, uint32_t ip2, const std::string &opt )
 	std::string query = format(
 		"INSERT INTO dhcp_options ( ip_addr_from, ip_addr_to, options )"
 			"VALUES( {0}, {1}, x'{2,B16,f0,w2}' )",
-		ip1, ip2, as_hex<char>( opt ) );
+		ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ) );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );

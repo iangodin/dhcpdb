@@ -78,7 +78,7 @@ std::string ip_lookup( uint32_t ip, bool numeric )
 
 	int err = EAI_AGAIN;
 	while ( err == EAI_AGAIN )
-		err = getnameinfo( (struct sockaddr*)&sa, sizeof(sa), node, sizeof(node), NULL, 0, 0 );
+		err = getnameinfo( (struct sockaddr*)&sa, sizeof(sa), node, sizeof(node), NULL, 0, NI_NAMEREQD );
 
 	if ( err != 0 )
 	{
