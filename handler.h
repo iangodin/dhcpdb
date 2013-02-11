@@ -23,11 +23,14 @@
 #pragma once
 
 #include <stdint.h>
+#include <vector>
+
 class packet_queue;
 
 ////////////////////////////////////////
 
 void handler( uint32_t server_addr, packet_queue &queue );
+void fillOptions( packet *p, const std::vector<std::string> &opts );
 
 ////////////////////////////////////////
 

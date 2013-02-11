@@ -18,6 +18,7 @@
 #include "backend.h"
 #include "format.h"
 #include "option.h"
+#include "config.h"
 
 std::mutex printmutex;
 
@@ -467,6 +468,8 @@ void handleClientRequest( packet *p, uint32_t server_addr, packet_queue &queue )
 
 void handler( uint32_t server_addr, packet_queue &queue )
 {
+	static std::mutex mutex;
+
 	try
 	{
 		threadStartBackend();
@@ -476,14 +479,28 @@ void handler( uint32_t server_addr, packet_queue &queue )
 		error( "Thread couldn't start properly" );
 	}
 
-	packet *p = queue.wait();
-	while ( p != NULL )
+	bool testing = false;
+	{
+		std::string test = configuration["testing"] ;
+		testing = ( test == "yes" || test == "true" || test == "on" );
+	}
+	if ( testing )
+		syslog( LOG_INFO, "Testing mode" );
+
+	while ( packet *p = queue.wait() )
 	{
 		try
 		{
-			// Process the packet
-			if ( p->op == BOOT_REQUEST )
+			if ( testing )
+			{
+				std::unique_lock<std::mutex> lock( mutex );
+				std::cout << "Packet:\n" << p << std::endl;
+			}
+			else if ( p->op == BOOT_REQUEST )
+			{
+				// Process the packet
 				handleClientRequest( p, server_addr, queue );
+			}
 			else if ( p->op == BOOT_REPLY )
 			{
 				; // Ignore replies for now (always?)
@@ -497,7 +514,6 @@ void handler( uint32_t server_addr, packet_queue &queue )
 		}
 
 		queue.free( p );
-		p = queue.wait();
 	}
 
 	try
