@@ -29,8 +29,8 @@ void print_usage( const std::string &prog )
 	std::cout << "\nCommands:\n";
 	std::cout << "  server [<pidfile>] - start a server (with optional pidfile)\n";
 	std::cout << "  show <ip> - show options for <ip>\n";
-	std::cout << "  option <ip> <ip> <option> - add option for IP range\n";
-	std::cout << "  remove-option <ip> <ip> <option> - remove option for IP range\n";
+	std::cout << "  option <ip> [<ip>] <option> - add option for IP range\n";
+	std::cout << "  remove-option <ip> [<ip>] <option> - remove option for IP range\n";
 	std::cout << "  host <ip> <mac> - add option for IP range\n";
 	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
 	std::cout << "  list <mac> - list IP addresses for a MAC address\n";
@@ -145,24 +145,28 @@ int main( int argc, char *argv[] )
 	else if ( command[0] == "option" )
 	{
 		threadStartBackend();
-		if ( command.size() != 4 )
-			error( "Command 'option' needs 3 arguments: option <ip> <ip> <option>" );
+		if ( command.size() != 3 && command.size() != 4 )
+			error( "Command 'option' needs 2 or 3 arguments: option <ip> [<ip>] <option>" );
 
 		uint32_t ip1 = dns_lookup( command[1].c_str() );
-		uint32_t ip2 = dns_lookup( command[2].c_str() );
-		std::string opt = parse_option( command[3] );
+		uint32_t ip2 = ip1;
+		if ( command.size() == 4 )
+			ip2 = dns_lookup( command[2].c_str() );
+		std::string opt = parse_option( command.back() );
 		addOption( ip1, ip2, opt );
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-option" )
 	{
 		threadStartBackend();
-		if ( command.size() != 4 )
-			error( "Command 'remove-option' needs 3 arguments: remove-option <ip> <ip> <option>" );
+		if ( command.size() != 3 && command.size() != 4  )
+			error( "Command 'remove-option' needs 2 or 3 arguments: remove-option <ip> [<ip>] <option>" );
 
 		uint32_t ip1 = dns_lookup( command[1].c_str() );
-		uint32_t ip2 = dns_lookup( command[2].c_str() );
-		std::string opt = parse_option( command[3] );
+		uint32_t ip2 = ip1;
+		if ( command.size() == 4 )
+			ip2 = dns_lookup( command[2].c_str() );
+		std::string opt = parse_option( command.back() );
 		removeOption( ip1, ip2, opt );
 		threadStopBackend();
 	}
