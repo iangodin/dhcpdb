@@ -97,10 +97,10 @@ std::string ip_lookup( uint32_t ip, bool numeric, bool fqdn )
 
 ////////////////////////////////////////
 
-udp_socket::udp_socket( uint32_t addr, uint64_t port )
+udp_socket::udp_socket( uint32_t addr, uint64_t port, bool broadcast )
 {
 	// Create the socket
-	_fd = ::socket( AF_INET, SOCK_DGRAM, 0 );
+	_fd = ::socket( PF_INET, SOCK_DGRAM, IPPROTO_UDP );
 	if ( _fd < 0 )
 		error( errno, "Error creating server socket" );
 
@@ -108,53 +108,34 @@ udp_socket::udp_socket( uint32_t addr, uint64_t port )
 	auto guard = make_guard( [&]() { ::close( _fd ); _fd = -1; } );
 
 	// Set the socket to be reusable immediately after closing
-	int opt = 1;
-	if ( setsockopt( _fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) ) != 0 )
-		error( errno, "Error reusing address" );
+	if ( port > 0 )
+	{
+		int opt = 1;
+		if ( setsockopt( _fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) ) != 0 )
+			error( errno, "Error reusing address" );
+	}
+
+	if ( broadcast )
+	{
+		int opt = 1;
+		// Turn on broadcasting
+		if ( setsockopt( _fd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt) ) != 0 )
+			error( errno, "Could not set broadcast" );
+	}
 
 	// Bind the socket
-	struct sockaddr_in servaddr;
-	size_t servsize = sizeof(servaddr);
-	memset( (void *)(&servaddr), 0, servsize );
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = addr;
-	servaddr.sin_port = htons( port );
+	if( port != 0 )
+	{
+		struct sockaddr_in servaddr;
+		size_t servsize = sizeof(servaddr);
+		memset( (void *)(&servaddr), 0, servsize );
+		servaddr.sin_family = AF_INET;
+		servaddr.sin_addr.s_addr = addr;
+		servaddr.sin_port = htons( port );
 
-	if ( ::bind( _fd, (struct sockaddr *)&servaddr, servsize ) != 0 )
-		error( errno, format( "Error binding socket ({0})", ip_lookup( addr ) ) );
-
-	guard.commit();
-}
-
-////////////////////////////////////////
-
-udp_socket::udp_socket( uint32_t addr )
-{
-	_fd = ::socket( AF_INET, SOCK_DGRAM, 0 );
-	if ( _fd < 0 )
-		error( errno, "Error creating client socket" );
-
-	// Close if we exit prematurely
-	auto guard = make_guard( [&]() { ::close( _fd ); _fd = -1; } );
-
-	// Set the socket to be reusable immediately after closing
-	int opt = 1;
-	if ( setsockopt( _fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt) ) != 0 )
-		error( errno, "Error reusing address" );
-
-	// Turn on broadcasting
-	if ( setsockopt( _fd, SOL_SOCKET, SO_BROADCAST, &opt, sizeof(opt) ) != 0 )
-		error( errno, "Could not set broadcast" );
-
-	// Bind the socket
-	struct sockaddr_in servaddr;
-	size_t servsize = sizeof(servaddr);
-	memset( (void *)(&servaddr), 0, servsize );
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = addr;
-	servaddr.sin_port = htons( 67 );
-	if ( ::bind( _fd, (struct sockaddr *)&servaddr, servsize ) != 0 )
-		error( errno, "Error binding socket" );
+		if ( ::bind( _fd, (struct sockaddr *)&servaddr, servsize ) != 0 )
+			error( errno, format( "Error binding socket ({0})", ip_lookup( addr ) ) );
+	}
 
 	guard.commit();
 }
@@ -176,13 +157,13 @@ void udp_socket::recv( packet *p )
 
 ////////////////////////////////////////
 
-void udp_socket::send( uint32_t dest, packet *p )
+void udp_socket::send( uint32_t dest, uint16_t port, packet *p )
 {
 	struct sockaddr_in recipient;
 	memset( (void *)(&recipient), 0, sizeof(recipient) );
 	recipient.sin_family = AF_INET;
-	recipient.sin_addr.s_addr = htonl( dest );
-	recipient.sin_port = htons( 68 );
+	recipient.sin_addr.s_addr = dest;
+	recipient.sin_port = htons( port );
 
 	uint8_t *start = reinterpret_cast<uint8_t*>( p );
 	uint8_t *end = start + sizeof(packet)-1;
@@ -190,7 +171,6 @@ void udp_socket::send( uint32_t dest, packet *p )
 		end--;
 
 	size_t size = end - start + 1;
-	std::cout << "Sending: " << size << std::endl;
 
 	ssize_t sent = ::sendto( _fd, p, size, 0, (struct sockaddr *)&recipient, sizeof(recipient) );
 	if ( sent != size )

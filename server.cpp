@@ -27,6 +27,7 @@
 #include "daemon.h"
 #include "packet_queue.h"
 #include "config.h"
+#include "guard.h"
 
 #include <stdio.h>
 #include <syslog.h>
@@ -34,11 +35,51 @@
 #include <getopt.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
 
 #include <thread>
 #include <vector>
 
 #define NUM_THREADS 5
+
+////////////////////////////////////////
+
+namespace
+{
+
+void serve( uint32_t listen_address, uint32_t server_address )
+{
+	syslog( LOG_INFO, "DHCP server started on %s", ip_lookup( listen_address ).c_str() );
+
+	packet_queue queue;
+	std::vector<std::thread> threads;
+	for ( size_t t = 0; t < NUM_THREADS; ++t )
+		threads.push_back( std::thread( std::bind( &handler, server_address, std::ref( queue ) ) ) );
+
+	udp_socket s( listen_address, 67, false );
+
+	while ( 1 )
+	{
+		try
+		{
+			packet *p = queue.alloc();
+			s.recv( p );
+			queue.queue( p );
+		}
+		catch ( ... )
+		{
+		}
+	}
+
+	for ( size_t t = 0; t < threads.size(); ++t )
+		queue.queue( NULL );
+
+	for ( size_t t = 0; t < threads.size(); ++t )
+		threads[t].join();
+}
+
+}
 
 ////////////////////////////////////////
 
@@ -54,40 +95,41 @@ int server( void )
 
 		openlog( "dhcpdb", LOG_PERROR | LOG_PID, LOG_DAEMON );
 
-		uint32_t server_address = dns_lookup( configuration["server"].c_str() );
-		if ( server_address == 0 )
-			error( "No server address specified" );
-
 		daemonize( "dhcpdb", foreground );
-
-		syslog( LOG_INFO, "DHCP server started using address %s", ip_lookup( server_address ).c_str() );
-
-		udp_socket s( INADDR_ANY, 67 );
 
 		std::vector<std::thread> threads;
 
-		packet_queue queue;
-		for ( size_t t = 0; t < NUM_THREADS; ++t )
-			threads.push_back( std::thread( std::bind( &handler, server_address, std::ref( queue ) ) ) );
-
-		while ( 1 )
+		uint32_t main_ip = INADDR_ANY;
+		if ( configuration.find( "server" ) != configuration.end() )
 		{
-			try
+			main_ip = dns_lookup( configuration["server"].c_str() );
+			threads.push_back( std::thread( std::bind( &serve, main_ip, main_ip ) ) );
+		}
+		else
+		{
+			struct ifaddrs *addrs;
+			if ( getifaddrs( &addrs ) != 0 )
+				error( errno, "Getting network interfaces" );
+			auto g = make_guard( [=](){ freeifaddrs( addrs ); } );
+
+			struct ifaddrs *ifa = addrs;
+			while ( ifa )
 			{
-				packet *p = queue.alloc();
-				s.recv( p );
-				queue.queue( p );
-			}
-			catch ( ... )
-			{
+				sockaddr_in *addr = reinterpret_cast<sockaddr_in*>( ifa->ifa_addr );
+				if ( addr != NULL && addr->sin_family == AF_INET )
+				{
+					uint32_t ip = addr->sin_addr.s_addr;
+					if ( main_ip == INADDR_ANY || main_ip == htonl( INADDR_LOOPBACK ) || main_ip == INADDR_BROADCAST )
+						main_ip = ip;
+					threads.push_back( std::thread( std::bind( &serve, ip, ip ) ) );
+				}
+				ifa = ifa->ifa_next;
 			}
 		}
+		threads.push_back( std::thread( std::bind( &serve, INADDR_ANY, main_ip ) ) );
 
-		for ( size_t t = 0; t < threads.size(); ++t )
-			queue.queue( NULL );
-
-		for ( size_t t = 0; t < threads.size(); ++t )
-			threads[t].join();
+		for ( size_t i = 0; i < threads.size(); ++i )
+			threads[i].join();
 	}
 	catch ( ... )
 	{

@@ -47,10 +47,7 @@ class udp_socket
 {
 public:
 	// Open a socket and bind it to the addr/port (for a server).
-	udp_socket( uint32_t addr, uint64_t port );
-
-	// Open a socket to the given address (for a client).
-	udp_socket( uint32_t addr );
+	udp_socket( uint32_t addr, uint64_t port, bool broadcast );
 
 	~udp_socket( void );
 
@@ -59,7 +56,7 @@ public:
 	void recv( packet *p );
 
 	// Send a packet to 'dest'.
-	void send( uint32_t dest, packet *p );
+	void send( uint32_t dest, uint16_t port, packet *p );
 
 	int fd( void ) const { return _fd; }
 

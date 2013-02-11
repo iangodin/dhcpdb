@@ -192,8 +192,8 @@ void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip,
 	fillOptions( reply, options );
 
 	// Send the packet
-	udp_socket client( server_ip );
-	client.send( 0xFFFFFFFF, reply );
+	udp_socket client( server_ip, 67, true );
+	client.send( INADDR_BROADCAST, 68, reply );
 
 	IPAddr client_ip;
 	client_ip.addr = reply->yiaddr;
@@ -329,8 +329,8 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 
 	fillOptions( reply, options );
 
-	udp_socket client( server_ip );
-	client.send( 0xFFFFFFFF, reply );
+	udp_socket client( server_ip, 67, true );
+	client.send( INADDR_BROADCAST, 68, reply );
 
 	uint8_t *hwaddr = reply->chaddr;
 
