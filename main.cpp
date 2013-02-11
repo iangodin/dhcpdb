@@ -27,7 +27,7 @@ void print_usage( const std::string &prog )
 	std::cout << "  <config> Configuration file as absolute path (starting with /)\n";
 	std::cout << "  <command> Commend to execute (with arguments)\n";
 	std::cout << "\nCommands:\n";
-	std::cout << "  server - start a server\n";
+	std::cout << "  server [<pidfile>] - start a server (with optional pidfile)\n";
 	std::cout << "  show <ip> - show options for <ip>\n";
 	std::cout << "  option <ip> <ip> <option> - add option for IP range\n";
 	std::cout << "  remove-option <ip> <ip> <option> - remove option for IP range\n";
@@ -100,8 +100,14 @@ int main( int argc, char *argv[] )
 
 	if ( command[0] == "server" )
 	{
+		if ( command.size() > 2 )
+			error( "Command 'server' has 1 optional argument: server <pidfile>" );
+
+		if ( command.size() < 1 )
+			command.push_back( std::string() );
+
 		threadStartBackend();
-		int ret = server();
+		int ret = server( command[1] );
 		threadStopBackend();
 	}
 

@@ -1,4 +1,4 @@
 
 #pragma once
 
-int server( void );
+int server( const std::string &pidfile );

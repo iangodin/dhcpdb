@@ -83,7 +83,7 @@ void serve( uint32_t listen_address, uint32_t server_address )
 
 ////////////////////////////////////////
 
-int server( void )
+int server( const std::string &pidf )
 {
 	try
 	{
@@ -96,6 +96,9 @@ int server( void )
 		openlog( "dhcpdb", LOG_PERROR | LOG_PID, LOG_DAEMON );
 
 		daemonize( "dhcpdb", foreground );
+
+		if ( !pidf.empty() )
+			pidfile( pidf );
 
 		std::vector<std::thread> threads;
 

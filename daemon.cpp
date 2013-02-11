@@ -26,7 +26,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <unistd.h>
+
+#include <string>
+#include <fstream>
 
 ////////////////////////////////////////
 
@@ -114,6 +118,30 @@ void daemonize( const char *name, bool fg )
 		syslog( LOG_ERR, "Can't change directory to /" );
 		exit( 1 );
 	}
+}
+
+////////////////////////////////////////
+
+void pidfile( const std::string &file )
+{
+	{
+		std::ifstream str( file );
+		int pid;
+		if ( str >> pid && pid != 0 )
+		{
+			if ( kill( pid, 0 ) == 0 || errno != ESRCH )
+			{
+				syslog( LOG_ERR, "Server already running as pid %d", pid );
+				exit( 1 );
+			}
+		}
+		str.close();
+	}
+
+	std::ofstream str( file, std::ios_base::out | std::ios_base::trunc );
+	str.exceptions( std::ofstream::failbit | std::ofstream::badbit );
+	str << getpid() << std::endl;
+	str.close();
 }
 
 ////////////////////////////////////////
