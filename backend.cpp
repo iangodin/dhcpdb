@@ -235,7 +235,7 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 
 	std::string query = format(
 		"INSERT IGNORE INTO dhcp_lease ( ip_addr, mac_addr, expiration ) "
-			"VALUES( {0}, x'{1,B16,f0,w2}', TIMESTAMPADD( SECOND, {2}, NOW() ) )",
+			"VALUES( {0}, x'{1,B16,f0,w2}', 0 )",
 		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
@@ -248,12 +248,21 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 			"WHERE ip_addr={0} AND mac_addr = x'{1,B16,f0,w2}'",
 		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
 
-	if ( mysql_affected_rows( db ) != 1 )
+	if ( mysql_query( db, query.c_str() ) != 0 )
 	{
-		syslog( LOG_ERR, "Acquire lease failed: ip is already assigned" );
+		syslog( LOG_ERR, "Lease expiration: %s", mysql_error( db ) );
 		return false;
 	}
 
+	int affected = mysql_affected_rows( db );
+   	if ( affected != 1 )
+	{
+		syslog( LOG_DEBUG, "%s", query.c_str() );
+		syslog( LOG_ERR, "Lease expiration (%d): ip is already assigned", affected );
+		return false;
+	}
+
+	syslog( LOG_ERR, "Acquired lease: %u", time );
 	return true;
 }
 
