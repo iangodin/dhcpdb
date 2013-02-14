@@ -244,23 +244,13 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 		return false;
 	}
 
-	query = format(
-		"SELECT * FROM dhcp_lease "
+	query = format( "UPDATE dhcp_lease SET expiration=TIMESTAMPADD( SECOND, {2}, NOW() )"
 			"WHERE ip_addr={0} AND mac_addr = x'{1,B16,f0,w2}'",
-		ntohl( ip ), as_hex<uint8_t>(hwaddr,6) );
+		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
 
-	if ( mysql_query( db, query.c_str() ) != 0 )
+	if ( mysql_affected_rows( db ) != 1 )
 	{
-		syslog( LOG_ERR, "Acquire lease: %s", mysql_error( db ) );
-		return false;
-	}
-
-	MYSQL_RES *result = mysql_store_result( db );
-	auto freeres = make_guard( [=](){ mysql_free_result( result ); } );
-
-	if ( mysql_num_rows( result ) != 1 )
-	{
-		syslog( LOG_ERR, "Acquire lease: ip is already assigned" );
+		syslog( LOG_ERR, "Acquire lease failed: ip is already assigned" );
 		return false;
 	}
 
