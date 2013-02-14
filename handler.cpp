@@ -310,10 +310,11 @@ void replyRequest( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip, 
 
 	// Add mandatory options
 	uint32_t lease_time = 0;
-	if ( !lease.empty() )
+	if ( lease.size() == 6 )
 	{
 		options.insert( options.begin(), lease );
-		lease_time = ntohl( *( reinterpret_cast<uint32_t*>(&options[2]) ) );
+		for ( int i = 2; i < 6; ++i )
+			lease_time = ( lease_time << 8 ) + uint8_t(lease[i]);
 	}
 	options.insert( options.begin(), server );
 
