@@ -186,7 +186,6 @@ int safemain( int argc, char *argv[] )
 			ip2 = dns_lookup( command[2].c_str() );
 		std::string opt = parse_option( command.back() );
 		addOption( ip1, ip2, opt );
-		std::cout << "Add: " << format( "{0} {1} \"{2}\"", ip_lookup( ip1 ), ip_lookup( ip2 ), print_options( opt ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-option" )
