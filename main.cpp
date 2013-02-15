@@ -8,6 +8,7 @@
 
 #include <arpa/inet.h>
 #include <string.h>
+#include <syslog.h>
 
 #include "config.h"
 #include "option.h"
@@ -18,6 +19,9 @@
 #include "udp_socket.h"
 #include "packet.h"
 #include "handler.h"
+
+void print_usage( const std::string &prog );
+int safemain( int argc, char *argv[] );
 
 ////////////////////////////////////////
 
@@ -72,7 +76,7 @@ void print_usage( const std::string &prog )
 
 ////////////////////////////////////////
 
-int main( int argc, char *argv[] )
+int safemain( int argc, char *argv[] )
 {
 	std::string config = "/etc/dhcpdb.conf";
 	std::vector<std::string> command;
@@ -301,5 +305,25 @@ int main( int argc, char *argv[] )
 
 
 	return 0;
+}
+
+////////////////////////////////////////
+
+int main( int argc, char *argv[] )
+{
+	try
+	{
+		return safemain( argc, argv );
+	}
+	catch ( std::exception &e )
+	{
+		syslog( LOG_CRIT, "Fatal error: %s", e.what() );
+	}
+	catch ( ... )
+	{
+		syslog( LOG_CRIT, "Fatal error: unknown" );
+	}
+
+	return -1;
 }
 
