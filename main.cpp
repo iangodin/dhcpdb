@@ -32,15 +32,15 @@ void print_usage( const std::string &prog )
 	std::cout << "  <command> Commend to execute (with arguments)\n";
 	std::cout << "\nCommands:\n";
 	std::cout << "  server [<pidfile>] - start a server (with optional pidfile)\n";
-	std::cout << "  show <ip> - show options for <ip>\n";
-	std::cout << "  option <ip> [<ip>] <option> - add option for IP range\n";
+	std::cout << "  options [<ip>] - show options for <ip> (or all when no ip)\n";
+	std::cout << "  add-option <ip> [<ip>] <option> - add option for IP range\n";
 	std::cout << "  remove-option <ip> [<ip>] <option> - remove option for IP range\n";
-	std::cout << "  host <ip> <mac> - add option for IP range\n";
+	std::cout << "  add-host <ip> <mac> - add option for IP range\n";
 	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
-	std::cout << "  list <mac> - list IP addresses for a MAC address\n";
-	std::cout << "  available <mac> - list available IP addresses for a MAC address\n";
-	std::cout << "  encode <option> - encode the option into a hex string\n";
-	std::cout << "  decode <hex> - decode the hex option into something readable\n";
+	std::cout << "  list-all <mac> - list IP addresses for a MAC address\n";
+	std::cout << "  list-available <mac> - list available IP addresses for a MAC address\n";
+	std::cout << "  encode <option> ... - encode the option into a hex string\n";
+	std::cout << "  decode <hex> ... - decode the hex option into something readable\n";
 	std::cout << "  discover <ip> <mac> [<option> ...] - send a discover packet to an IP address\n";
 	std::cout << "  monitor - listen for DHCP packets and show them\n";
 	std::cout << "\nDHCP Options:\n";
@@ -133,38 +133,48 @@ int safemain( int argc, char *argv[] )
 		threadStopBackend();
 	}
 
-	if ( command[0] == "show" )
+	if ( command[0] == "options" )
 	{
 		threadStartBackend();
-		if ( command.size() != 2 )
-			error( "Command 'show' needs 1 arguments: show <ip>" );
+		if ( command.size() > 2 )
+			error( "Command 'options' needs at most 1 arguments: options [<ip>]" );
 
-		uint32_t ip = dns_lookup( command[1].c_str() );
-		std::vector<std::string> options;
-		getOptions( ip, options );
-		bool addhost = true;
-		for ( std::string &o: options )
+		if ( command.size() == 2 )
 		{
-			if ( o.empty() )
-				continue;
-			if ( o[0] == DOP_HOSTNAME )
-				addhost = false;
+			uint32_t ip = dns_lookup( command[1].c_str() );
+			std::vector<std::string> options;
+			getOptions( ip, options );
+			bool addhost = true;
+			for ( std::string &o: options )
+			{
+				if ( o.empty() )
+					continue;
+				if ( o[0] == DOP_HOSTNAME )
+					addhost = false;
+			}
+			if ( addhost )
+			{
+				std::string hostname;
+				try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
+				if ( !hostname.empty() )
+					options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+			}
+			std::sort( options.begin(), options.end() );
+			for ( const std::string &o: options )
+				std::cout << print_options( o ) << '\n';
+			if ( options.empty() )
+				std::cout << "no options found\n";
+			threadStopBackend();
 		}
-		if ( addhost )
+		else
 		{
-			std::string hostname;
-			try { hostname = ip_lookup( ip, false, false ); } catch ( ... ) {}
-			if ( !hostname.empty() )
-				options.push_back( format( "{0}{1}{2}", char(DOP_HOSTNAME), char(hostname.size()), hostname ) );
+			std::vector<std::tuple<uint32_t, uint32_t, std::string>> options;
+			getAllOptions( options );
+			for ( auto opt: options )
+				std::cout << format( "{0,w15} {1,w15} \"{2}\"", ip_lookup( std::get<0>( opt ) ), ip_lookup( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
 		}
-		std::sort( options.begin(), options.end() );
-		for ( const std::string &o: options )
-			std::cout << print_options( o ) << '\n';
-		if ( options.empty() )
-			std::cout << "no options found\n";
-		threadStopBackend();
 	}
-	else if ( command[0] == "option" )
+	else if ( command[0] == "add-option" )
 	{
 		threadStartBackend();
 		if ( command.size() != 3 && command.size() != 4 )
@@ -176,6 +186,7 @@ int safemain( int argc, char *argv[] )
 			ip2 = dns_lookup( command[2].c_str() );
 		std::string opt = parse_option( command.back() );
 		addOption( ip1, ip2, opt );
+		std::cout << "Add: " << format( "{0} {1} \"{2}\"", ip_lookup( ip1 ), ip_lookup( ip2 ), print_options( opt ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-option" )
@@ -192,7 +203,7 @@ int safemain( int argc, char *argv[] )
 		removeOption( ip1, ip2, opt );
 		threadStopBackend();
 	}
-	else if ( command[0] == "host" )
+	else if ( command[0] == "add-host" )
 	{
 		threadStartBackend();
 		if ( command.size() != 3 )
@@ -213,11 +224,11 @@ int safemain( int argc, char *argv[] )
 		removeHost( ip );
 		threadStopBackend();
 	}
-	else if ( command[0] == "list" )
+	else if ( command[0] == "list-all" )
 	{
 		threadStartBackend();
 		if ( command.size() != 2 )
-			error( "Command 'list' needs 1 argument: list <mac>" );
+			error( "Command 'list-all' needs 1 argument: list-all <mac>" );
 
 		std::string mac = parse_mac( command[1] );
 		std::vector<uint32_t> ips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ) );
@@ -227,11 +238,11 @@ int safemain( int argc, char *argv[] )
 			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, ':' ) ) << std::endl;
 		threadStopBackend();
 	}
-	else if ( command[0] == "available" )
+	else if ( command[0] == "list-available" )
 	{
 		threadStartBackend();
 		if ( command.size() != 2 )
-			error( "Command 'available' needs 1 argument: available <mac>" );
+			error( "Command 'list-available' needs 1 argument: list-available <mac>" );
 
 		std::string mac = parse_mac( command[1] );
 		std::vector<uint32_t> ips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ), true );
@@ -243,19 +254,25 @@ int safemain( int argc, char *argv[] )
 	}
 	else if ( command[0] == "decode" )
 	{
-		if ( command.size() != 2 )
-			error( "Command 'decode' needs 1 argument: decode <hex>" );
+		if ( command.size() < 2 )
+			error( "Command 'decode' needs at least 1 argument: decode <hex> ..." );
 
-		std::string o = print_options( from_hex( command[1] ) );
-		std::cout << o << std::endl;
+		for ( size_t i = 1; i < command.size(); ++i )
+		{
+			std::string o = print_options( from_hex( command[i] ) );
+			std::cout << '\"' << o << '\"' << std::endl;
+		}
 	}
 	else if ( command[0] == "encode" )
 	{
-		if ( command.size() != 2 )
-			error( "Command 'encode' needs 1 argument: encode <option>" );
+		if ( command.size() < 2 )
+			error( "Command 'encode' needs at least 1 argument: encode <option> ..." );
 
-		std::string o = parse_option( command[1] );
-		std::cout << format( "{0,B16,w2,f0}", as_hex<char>( o ) ) << std::endl;
+		for ( size_t i = 1; i < command.size(); ++i )
+		{
+			std::string o = parse_option( command[i] );
+			std::cout << format( "{0,B16,w2,f0}", as_hex<char>( o ) ) << std::endl;
+		}
 	}
 	else if ( command[0] == "discover" )
 	{
