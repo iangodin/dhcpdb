@@ -265,10 +265,14 @@ int main( int argc, char *argv[] )
 	}
 	else if ( command[0] == "monitor" )
 	{
-		if ( command.size() != 1 )
-			error( "Command 'monitor' needs no arguments: monitor" );
+		if ( command.size() > 2 )
+			error( "Command 'monitor' needs at most 1 argument: monitor [<ip>]" );
 
-		udp_socket s( INADDR_ANY, 67, false );
+		uint32_t ipaddr = INADDR_ANY;
+		if ( command.size() > 1 )
+			ipaddr = dns_lookup( command[1].c_str() );
+
+		udp_socket s( ipaddr, 67, false );
 		packet p;
 
 		while ( 1 )
