@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
+#include <tuple>
 
 #include "config.h"
 
@@ -41,6 +42,8 @@ std::vector<uint32_t> getIPAddresses( const uint8_t *mac, bool avail = false );
 
 // Get the DHCP options for the given IP.
 void getOptions( uint32_t ip, std::vector<std::string> &options );
+
+void getAllOptions( std::vector< std::tuple<uint32_t, uint32_t, std::string> > &options );
 
 ////////////////////////////////////////
 
