@@ -27,7 +27,7 @@
 ////////////////////////////////////////
 
 format_specifier::format_specifier( const char * &fmt, const char *end )
-	: index( 0 ), width( -1 ), base( 10 ), precision( -1 ), alignment( -1 ), fill( ' ' ), separator( '\0' ), upper_case( false ), show_plus( false ), count( 1 )
+	: index( 0 ), width( -1 ), base( 10 ), precision( -1 ), alignment( 0 ), fill( ' ' ), separator( '\0' ), upper_case( false ), show_plus( false ), count( 1 )
 {
 	if ( fmt == end )
 		throw std::runtime_error( "empty format specifier" );
