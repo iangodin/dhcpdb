@@ -10,6 +10,68 @@
 
 ////////////////////////////////////////
 
+std::string pack_name( const std::string &name )
+{
+	std::string ret;
+	size_t loc = 0;
+	ret.push_back( '\0' );
+	for ( size_t i = 0; i < name.size(); ++i )
+	{
+		if ( std::isalnum( name[i] ) )
+		{
+			ret.push_back( name[i] );
+			ret[loc]++;
+		}
+		else if ( name[i] == '.' )
+		{
+			loc = ret.size();
+			ret.push_back( '\0' );
+		}
+		else if ( !std::isspace( name[i] ) )
+			error( "Invalid character in domain name" );
+	}
+
+	if ( ret.back() == '\0' )
+		error( "Domain name ended with '.'" );
+
+	if ( ret.empty() )
+		error( "Domain name is empty." );
+
+	ret.push_back( '\0' );
+
+	return ret;
+}
+
+////////////////////////////////////////
+
+void unpack_names( const std::string &str, std::vector<std::string> &n )
+{
+	std::string ret;
+
+	for ( size_t i = 0; i < str.size(); )
+	{
+		uint8_t s = str[i++];
+		if ( s == 0 )
+		{
+			if ( !ret.empty() )
+				n.push_back( ret );
+			ret.clear();
+		}
+		else
+		{
+			if ( !ret.empty() )
+				ret.push_back( '.' );
+			ret += str.substr( i, s );
+			i += s;
+		}
+	}
+
+	if ( !ret.empty() )
+		n.push_back( ret );
+}
+
+////////////////////////////////////////
+
 std::string from_hex( const std::string &h )
 {
 	std::string ret;
@@ -34,7 +96,6 @@ std::string parse_mac( const std::string &opt )
 	}
 
 	return ret;
-
 }
 
 ////////////////////////////////////////
@@ -49,15 +110,17 @@ std::string parse_option( const std::string &opt )
 	if ( dhcp_options.find( name ) == dhcp_options.end() )
 		error( format( "Unknown DHCP option '{0}'", name ) );
 
-	std::string ret;
 	int o = dhcp_options[name];
 	std::vector<Type> &argtypes = dhcp_args[o];
 
-	ret.push_back( o );
-
-	if ( ret.back() == TYPE_MORE )
+	if ( argtypes.back() == TYPE_MORE )
 	{
 		argtypes.pop_back();
+		while ( argtypes.size() < args.size() )
+			argtypes.push_back( argtypes.back() );
+	}
+	if ( argtypes.size() == 1 && argtypes[0] == TYPE_NAMES )
+	{
 		while ( argtypes.size() < args.size() )
 			argtypes.push_back( argtypes.back() );
 	}
@@ -65,14 +128,19 @@ std::string parse_option( const std::string &opt )
 	if ( argtypes.size() != args.size() )
 		error( format( "Expected {0} arguments, got {1} instead", argtypes.size(), args.size() ) );
 
+	std::string ret;
+	ret.push_back( o );
+	ret.push_back( '\0' );
+
+	size_t size = 0;
+
 	for ( size_t i = 0; i < args.size(); ++i )
 	{
 		switch ( argtypes[i] )
 		{
 			case TYPE_ADDRESS:
 			{
-				ret.push_back( 4 );
-
+				size += 4;
 				uint32_t ip = dns_lookup( args[i].c_str() );
 				ret.append( std::string( reinterpret_cast<const char*>(&ip), 4 ) );
 				break;
@@ -83,14 +151,21 @@ std::string parse_option( const std::string &opt )
 				break;
 
 			case TYPE_STRING:
-				ret.push_back( args[i].size() );
+				size += args[i].size();
 				ret.append( args[i] );
 				break;
 
+			case TYPE_NAMES:
+			{
+				std::string tmp = pack_name( args[i] );
+				ret.append( tmp );
+				size += tmp.size();
+				break;
+			}
+
 			case TYPE_UINT32:
 			{
-				ret.push_back( 4 );
-
+				size += 4;
 				uint32_t ip = std::stoul( args[i] );
 				ret.append( reinterpret_cast<const char *>(&ip), 4 );
 				break;
@@ -98,8 +173,7 @@ std::string parse_option( const std::string &opt )
 
 			case TYPE_UINT16:
 			{
-				ret.push_back( 2 );
-
+				size += 2;
 				uint16_t n = htons( std::stoul( args[i] ) );
 				ret.append( reinterpret_cast<const char*>( &n ), 2 );
 				break;
@@ -107,7 +181,7 @@ std::string parse_option( const std::string &opt )
 
 			case TYPE_UINT8:
 			{
-				ret.push_back( 1 );
+				size += 1;
 				uint32_t n = std::stoul( args[0] );
 				if ( n > 255 )
 					error( format( "Number (argument {0}) too large for option {1}", i, name ) );
@@ -129,6 +203,8 @@ std::string parse_option( const std::string &opt )
 		}
 	}
 
+	ret[1] = size;
+
 	return ret;
 }
 
@@ -149,7 +225,7 @@ std::string print_options( const std::string &opt )
 	}
 
 	ret += name->second;
-	ret += "(";
+	ret.push_back( '(' );
 
 	std::vector<Type> &argtypes = dhcp_args[uint8_t(opt[0])];
 
@@ -178,10 +254,6 @@ std::string print_options( const std::string &opt )
 
 			case TYPE_HWADDR:
 				error( "Not yet implemented" );
-				break;
-
-			case TYPE_STRING:
-				ret += opt.substr( p, size_t(uint8_t(opt[1])) );
 				break;
 
 			case TYPE_UINT32:
@@ -215,11 +287,28 @@ std::string print_options( const std::string &opt )
 				break;
 			}
 
+			case TYPE_STRING:
+				ret += opt.substr( p, size_t(uint8_t(opt[1])) );
+				break;
+
 			case TYPE_HEX:
 			{
 				if ( opt.size() < 3 )
 					error( format( "Invalid option size {0}", opt.size() ) );
 				ret += format( "{0,B16,w2,f0}", as_hex<char>( opt.substr( 2, opt[1] ) ) );
+				break;
+			}
+
+			case TYPE_NAMES:
+			{
+				std::vector<std::string> names;
+				unpack_names( opt.substr( p, size_t(uint8_t(opt[1])) ), names );
+				for ( size_t i = 0; i < names.size(); ++i )
+				{
+					if ( i > 0 )
+						ret.append( ", " );
+					ret += names[i];
+				}
 				break;
 			}
 

@@ -55,10 +55,7 @@ void parse_config( const std::string &filename )
 				std::vector<std::string> optargs;
 				parse_function( val, name, optargs );
 
-				bool has_string = false;
-				bool has_hex = false;
 				std::vector<Type> args;
-
 				for ( size_t i = 0; i < optargs.size(); ++i )
 				{
 					std::string type = optargs[i];
@@ -66,15 +63,10 @@ void parse_config( const std::string &filename )
 					if ( type.empty() )
 						error( format( "No type at line {0}", count ) );
 
-					has_string = has_string || ( type == "string" );
-					has_hex = has_hex || ( type == "hex" );
-
 					if ( type == "ip" )
 						args.push_back( TYPE_ADDRESS );
 					else  if ( type == "mac" )
 						args.push_back( TYPE_HWADDR );
-					else  if ( type == "string" )
-						args.push_back( TYPE_STRING );
 					else  if ( type == "uint32" )
 						args.push_back( TYPE_UINT32 );
 					else  if ( type == "uint16" )
@@ -82,7 +74,23 @@ void parse_config( const std::string &filename )
 					else  if ( type == "uint8" )
 						args.push_back( TYPE_UINT8 );
 					else  if ( type == "hex" )
+					{
+						if ( !args.empty() || optargs.size() > 1 )
+							error( "Can only have a single 'hex' by itself in options" );
 						args.push_back( TYPE_HEX );
+					}
+					else  if ( type == "string" )
+					{
+						if ( !args.empty() || optargs.size() > 1 )
+							error( "Can only have a single 'string' by itself in options" );
+						args.push_back( TYPE_STRING );
+					}
+					else  if ( type == "names" )
+					{
+						if ( !args.empty() || optargs.size() > 1 )
+							error( "Can only have a single 'names' by itself in options" );
+						args.push_back( TYPE_NAMES );
+					}
 					else  if ( type == "..." )
 					{
 						if ( i+1 != optargs.size() )
@@ -94,11 +102,6 @@ void parse_config( const std::string &filename )
 					else
 						error( format( "Unknown type '{0}' at line {1}", type, count ) );
 				}
-
-				if ( has_string && args.size() > 1 )
-					error( "Can only have a single string by itself in options" );
-				if ( has_hex && args.size() > 1 )
-					error( "Can only have a single hex by itself in options" );
 
 				dhcp_args[opt] = args;
 				dhcp_options[name] = opt;

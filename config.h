@@ -16,6 +16,7 @@ enum Type
 	TYPE_UINT16,
 	TYPE_UINT8,
 	TYPE_HEX,
+	TYPE_NAMES,
 	TYPE_MORE,
 };
 
