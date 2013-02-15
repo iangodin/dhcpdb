@@ -44,33 +44,49 @@ void print_usage( const std::string &prog )
 	std::cout << "  discover <ip> <mac> [<option> ...] - send a discover packet to an IP address\n";
 	std::cout << "  monitor - listen for DHCP packets and show them\n";
 	std::cout << "\nDHCP Options:\n";
+
 	for ( auto opt: dhcp_options )
 	{
-		std::cout << "  " << opt.first;
-		switch ( dhcp_types[opt.second] )
+		std::vector<Type> &args = dhcp_args[opt.second];
+		std::cout << "  " << opt.first << '(';
+		bool first = true;
+		for ( auto t: args )
 		{
-			case TYPE_ADDRESS:
-				std::cout << "(1.2.3.4)\n";
-				break;
-			case TYPE_ADDRESSES:
-				std::cout << "(1.2.3.4,...)\n";
-				break;
-			case TYPE_HWADDR:
-				std::cout << "(00:11:22:33:44:55)\n";
-				break;
-			case TYPE_STRING:
-				std::cout << "(name)\n";
-				break;
-			case TYPE_UINT32:
-				std::cout << "(1234)\n";
-				break;
-			case TYPE_UINT8:
-				std::cout << "(12)\n";
-				break;
-			case TYPE_UINT8S:
-				std::cout << "(12,...)\n";
-				break;
+			if ( first )
+				first = false;
+			else
+				std::cout << ',';
+			std::cout << ' ';
+
+			switch ( t )
+			{
+				case TYPE_ADDRESS:
+					std::cout << "1.2.3.4";
+					break;
+				case TYPE_HWADDR:
+					std::cout << "00:11:22:33:44:55";
+					break;
+				case TYPE_STRING:
+					std::cout << "something";
+					break;
+				case TYPE_UINT32:
+					std::cout << "123456";
+					break;
+				case TYPE_UINT16:
+					std::cout << "1234";
+					break;
+				case TYPE_UINT8:
+					std::cout << "12";
+					break;
+				case TYPE_HEX:
+					std::cout << "0123456789ABCDEF";
+					break;
+				case TYPE_MORE:
+					std::cout << "...";
+					break;
+			}
 		}
+		std::cout << " )\n";
 	}
 }
 
@@ -88,6 +104,8 @@ int safemain( int argc, char *argv[] )
 			continue;
 
 		if ( i == 1 && arg[0] == '/' )
+			config = arg;
+		else if ( i == 1 && arg[0] == '.' )
 			config = arg;
 		else
 			command.push_back( arg );
@@ -303,7 +321,6 @@ int safemain( int argc, char *argv[] )
 		print_usage( argv[0] );
 	}
 
-
 	return 0;
 }
 
@@ -317,11 +334,11 @@ int main( int argc, char *argv[] )
 	}
 	catch ( std::exception &e )
 	{
-		syslog( LOG_CRIT, "Fatal error: %s", e.what() );
+		std::cerr << "Fatal error: " << e.what() << std::endl;
 	}
 	catch ( ... )
 	{
-		syslog( LOG_CRIT, "Fatal error: unknown" );
+		std::cerr << "Fatal error: unknown" << std::endl;
 	}
 
 	return -1;

@@ -6,6 +6,7 @@
 #include "config.h"
 #include "error.h"
 #include "udp_socket.h"
+#include "strutils.h"
 
 ////////////////////////////////////////
 
@@ -40,131 +41,92 @@ std::string parse_mac( const std::string &opt )
 
 std::string parse_option( const std::string &opt )
 {
-	size_t p = opt.find_first_of( '(' );
+	std::string name;
+	std::vector<std::string> args;
 
-	std::string name = opt.substr( 0, p );
+	parse_function( opt, name, args );
+
 	if ( dhcp_options.find( name ) == dhcp_options.end() )
 		error( format( "Unknown DHCP option '{0}'", name ) );
 
 	std::string ret;
 	int o = dhcp_options[name];
+	std::vector<Type> &argtypes = dhcp_args[o];
 
 	ret.push_back( o );
 
-	std::vector<std::string> args;
-	size_t e = opt.find_first_of( ",)", p );
-	while ( e != std::string::npos )
+	if ( ret.back() == TYPE_MORE )
 	{
-		args.push_back( opt.substr( p+1, e-p-1 ) );
-		p = e;
-		e = opt.find_first_of( ",)", p+1 );
+		argtypes.pop_back();
+		while ( argtypes.size() < args.size() )
+			argtypes.push_back( argtypes.back() );
 	}
 
-	switch ( dhcp_types[o] )
+	if ( argtypes.size() != args.size() )
+		error( format( "Expected {0} arguments, got {1} instead", argtypes.size(), args.size() ) );
+
+	for ( size_t i = 0; i < args.size(); ++i )
 	{
-		case TYPE_ADDRESS:
+		switch ( argtypes[i] )
 		{
-			if ( args.size() != 1 )
-				error( format( "Expected an IP address for option {0}", name ) );
-			ret.push_back( 4 );
-
-			uint32_t ip = dns_lookup( args[0].c_str() );
-			ret.append( std::string( reinterpret_cast<const char*>(&ip), 4 ) );
-			break;
-		}
-
-		case TYPE_ADDRESSES:
-		{
-			if ( args.size() < 1 )
-				error( format( "Expected IP addresses for option {0}", name ) );
-			ret.push_back( 4 * args.size() );
-
-			for ( std::string &a: args )
+			case TYPE_ADDRESS:
 			{
-				uint32_t ip = dns_lookup( a.c_str() );
-				ret.append( reinterpret_cast<const char*>(&ip), 4 );
+				ret.push_back( 4 );
+
+				uint32_t ip = dns_lookup( args[i].c_str() );
+				ret.append( std::string( reinterpret_cast<const char*>(&ip), 4 ) );
+				break;
 			}
-			break;
-		}
 
-		case TYPE_HWADDR:
-			error( "Not yet implemented" );
-			break;
+			case TYPE_HWADDR:
+				error( "Not yet implemented" );
+				break;
 
-		case TYPE_STRING:
-			if ( args.size() != 1 )
+			case TYPE_STRING:
+				ret.push_back( args[i].size() );
+				ret.append( args[i] );
+				break;
+
+			case TYPE_UINT32:
 			{
-				for ( size_t i = 1; i < args.size(); ++i )
-				{
-					args[0].push_back( ',' );
-					args[0].append( args[i] );
-				}
+				ret.push_back( 4 );
+
+				uint32_t ip = std::stoul( args[i] );
+				ret.append( reinterpret_cast<const char *>(&ip), 4 );
+				break;
 			}
-			ret.push_back( args[0].size() );
-			ret.append( args[0] );
-			break;
 
-		case TYPE_UINT32:
-		{
-			if ( args.size() < 1 )
-				error( format( "Expected a number for option {0}", name ) );
-			ret.push_back( 4 );
-
-			uint32_t ip = std::stoul( args[0] );
-			ret.append( reinterpret_cast<const char *>(&ip), 4 );
-			break;
-		}
-
-		case TYPE_UINT16:
-		{
-			if ( args.size() < 1 )
-				error( format( "Expected a number for option {0}", name ) );
-			ret.push_back( 2 );
-
-			uint16_t n = htons( std::stoul( args[0] ) );
-			ret.append( reinterpret_cast<const char*>( &n ), 2 );
-			break;
-		}
-
-		case TYPE_UINT8:
-		{
-			if ( args.size() < 1 )
-				error( format( "Expected a number for option {0}", name ) );
-			ret.push_back( 1 );
-			uint32_t n = std::stoul( args[0] );
-			if ( n > 255 )
-				error( format( "Number too large for option {0}", name ) );
-			ret.push_back( n );
-			break;
-		}
-
-		case TYPE_UINT8S:
-		{
-			if ( args.size() < 1 )
-				error( format( "Expected numbers for option {0}", name ) );
-			ret.push_back( args.size() );
-			for ( size_t i = 0; i < args.size(); ++i )
+			case TYPE_UINT16:
 			{
-				uint32_t n = std::stoul( args[i] );
+				ret.push_back( 2 );
+
+				uint16_t n = htons( std::stoul( args[i] ) );
+				ret.append( reinterpret_cast<const char*>( &n ), 2 );
+				break;
+			}
+
+			case TYPE_UINT8:
+			{
+				ret.push_back( 1 );
+				uint32_t n = std::stoul( args[0] );
 				if ( n > 255 )
-					error( format( "Number too large for option {0}", name ) );
+					error( format( "Number (argument {0}) too large for option {1}", i, name ) );
 				ret.push_back( n );
+				break;
 			}
-			break;
-		}
 
-		case TYPE_HEX:
-		{
-			if ( args.size() != 1 )
-				error( format( "Expected hex string for option {0}", name ) );
-			std::string hex = from_hex( args[0] );
-			ret.push_back( hex.size() );
-			ret.append( hex );
-			break;
+			case TYPE_HEX:
+			{
+				std::string hex = from_hex( args[i] );
+				ret.push_back( hex.size() );
+				ret.append( hex );
+				break;
+			}
+
+			default:
+				error( "Unknown option type" );
+				break;
 		}
-		default:
-			error( "Unknown option type" );
-			break;
 	}
 
 	return ret;
@@ -189,94 +151,85 @@ std::string print_options( const std::string &opt )
 	ret += name->second;
 	ret += "(";
 
-	switch ( dhcp_types[ uint32_t(uint8_t(opt[0])) ] )
+	std::vector<Type> &argtypes = dhcp_args[uint8_t(opt[0])];
+
+	size_t p = 2;
+	Type last = TYPE_MORE;
+	for ( size_t i = 0; i < argtypes.size(); ++i )
 	{
-		case TYPE_ADDRESS:
-			if ( opt.size() < 6 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			ret += format( "{0}", as_hex<char>( &opt[2], 4, '.' ) );
-			ret += ")";
-			break;
+		if ( i > 0 )
+			ret.push_back( ',' );
+		ret.push_back( ' ' );
 
-		case TYPE_ADDRESSES:
-			if ( ( opt.size() - 2 ) % 4 != 0 && opt.size() >= 6 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			for ( int i = 2; i + 4 <= opt.size(); i+=4 )
+		Type atype = argtypes[i];
+		if ( atype == TYPE_MORE )
+			atype = last;
+
+		if ( atype == TYPE_MORE )
+			error( "Invalid option specification" );
+
+		switch ( atype )
+		{
+			case TYPE_ADDRESS:
+				if ( p+4 > opt.size() )
+					error( "Not enough data for IP address" );
+				ret += format( "{0}", as_hex<char>( &opt[p], 4, '.' ) );
+				break;
+
+			case TYPE_HWADDR:
+				error( "Not yet implemented" );
+				break;
+
+			case TYPE_STRING:
+				ret += opt.substr( p, size_t(uint8_t(opt[1])) );
+				break;
+
+			case TYPE_UINT32:
 			{
-				if ( i > 2 )
-					ret += ",";
-				ret += format( "{0}", as_hex<char>( &opt[i], 4, '.' ) );
-			}
-			ret += ")";
-			break;
-
-		case TYPE_HWADDR:
-			break;
-
-		case TYPE_STRING:
-			ret += opt.substr( 2, size_t(uint8_t(opt[1])) );
-			ret += ")";
-			break;
-
-		case TYPE_UINT32:
-		{
-			if ( opt.size() != 6 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			uint32_t n = 0;
-			for ( int i = 2; i < 6; ++i )
-				n = ( n << 8 ) + uint8_t(opt[i]);
-			ret += format( "{0})", n );
-			break;
-		}
-
-		case TYPE_UINT16:
-		{
-			if ( opt.size() != 4 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			uint32_t n = 0;
-			for ( int i = 2; i < 4; ++i )
-				n = ( n << 8 ) + uint8_t(opt[i]);
-			ret += format( "{0})", n );
-			break;
-		}
-
-		case TYPE_UINT8:
-		{
-			if ( opt.size() != 3 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			uint32_t n = uint8_t(opt[2]);
-			ret += format( "{0})", n );
-			break;
-		}
-
-		case TYPE_UINT8S:
-		{
-			if ( opt.size() < 3 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			for ( size_t i = 2; i < opt.size(); ++i )
-			{
-				if ( i > 2 )
-					ret.push_back( ',' );
-				uint32_t n = uint8_t(opt[i]);
+				if ( p+4 > opt.size() )
+					error( "Not enough data for uint32" );
+				uint32_t n = 0;
+				for ( int i = 0; i < 4; ++i )
+					n = ( n << 8 ) + uint8_t(opt[p+i]);
 				ret += format( "{0}", n );
+				break;
 			}
-			ret.push_back( ')' );
-			break;
-		}
 
-		case TYPE_HEX:
-		{
-			if ( opt.size() < 3 )
-				error( format( "Invalid option size {0}", opt.size() ) );
-			ret += format( "{0,B16,w2,f0}", as_hex<char>( opt.substr( 2, opt[1] ) ) );
-			ret.push_back( ')' );
-			break;
-		}
+			case TYPE_UINT16:
+			{
+				if ( p+2 > opt.size() )
+					error( "Not enough data for uint16" );
+				uint32_t n = 0;
+				for ( int i = 0; i < 2; ++i )
+					n = ( n << 8 ) + uint8_t(opt[p+i]);
+				ret += format( "{0}", n );
+				break;
+			}
 
-		default:
-			error( "Unknown option type" );
-			break;
+			case TYPE_UINT8:
+			{
+				if ( p+1 > opt.size() )
+					error( "Not enough data for uint8" );
+				uint32_t n = uint8_t(opt[p]);
+				ret += format( "{0}", n );
+				break;
+			}
+
+			case TYPE_HEX:
+			{
+				if ( opt.size() < 3 )
+					error( format( "Invalid option size {0}", opt.size() ) );
+				ret += format( "{0,B16,w2,f0}", as_hex<char>( opt.substr( 2, opt[1] ) ) );
+				break;
+			}
+
+			default:
+				error( "Unknown option type" );
+				break;
+		}
+		last = atype;
 	}
+	ret += " )";
 
 	return ret;
 }

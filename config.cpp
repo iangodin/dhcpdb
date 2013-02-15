@@ -8,18 +8,19 @@
 #include "config.h"
 #include "format.h"
 #include "error.h"
+#include "strutils.h"
 
 std::map<std::string,std::string> configuration;
 
 std::map<std::string,int> dhcp_options;
 std::map<int,std::string> dhcp_names;
-std::map<int,Type> dhcp_types;
+std::map<int,std::vector<Type>> dhcp_args;
+
+////////////////////////////////////////
 
 void parse_config( const std::string &filename )
 {
 	std::ifstream file( filename );
-
-	std::string delim( "=:" );
 
 	int count = 0;
 	std::string line;
@@ -31,51 +32,86 @@ void parse_config( const std::string &filename )
 		if ( line[0] == '#' )
 			continue;
 
-		auto p = line.find_first_of( delim );
-		if ( p == 0 || p == std::string::npos || p == line.size() )
-			error( format( "Error in configuration at line {0}", count ) );
-
-		if ( line[p] == '=' )
+		try
 		{
-			configuration[line.substr( 0, p )] = line.substr( p + 1 );
-		}
-		else
-		{
-			std::string optname = line.substr( 0, p );
-			std::string type = line.substr( p + 1 );
-			int opt = std::stoi( type, &p );
-			type = type.substr( p );
-			type = type.substr( type.find_first_not_of( ' ' ) );
+			auto p = line.find_first_of( '=' );
+			if ( p == 0 || p == std::string::npos || p == line.size() )
+				error( "Expected '='" );
 
-			if ( opt <= 0 || opt >= 255 )
-				error( format( "Invalid DHCP option {0} at line {1}", opt, count ) );
+			std::string key( trim( line.substr( 0, p ) ) );
+			std::string val( trim( line.substr( p + 1 ) ) );
 
-			if ( type.empty() )
-				error( format( "No type at line {0}", count ) );
-
-			if ( type == "ip" )
-				dhcp_types[opt] = TYPE_ADDRESS;
-			else  if ( type == "ips" )
-				dhcp_types[opt] = TYPE_ADDRESSES;
-			else  if ( type == "mac" )
-				dhcp_types[opt] = TYPE_HWADDR;
-			else  if ( type == "string" )
-				dhcp_types[opt] = TYPE_STRING;
-			else  if ( type == "uint32" )
-				dhcp_types[opt] = TYPE_UINT32;
-			else  if ( type == "uint16" )
-				dhcp_types[opt] = TYPE_UINT16;
-			else  if ( type == "uint8" )
-				dhcp_types[opt] = TYPE_UINT8;
-			else  if ( type == "uint8s" )
-				dhcp_types[opt] = TYPE_UINT8S;
-			else  if ( type == "hex" )
-				dhcp_types[opt] = TYPE_HEX;
+			if ( ! is_number( key ) )
+			{
+				configuration[trim(key)] = trim( val );
+			}
 			else
-				error( format( "Unknown type '{0}' at line {1}", type, count ) );
+			{
+				int opt = std::stoi( key );
+				if ( opt <= 0 || opt >= 255 )
+					error( format( "Invalid DHCP option {0} at line {1}", opt, count ) );
 
-			dhcp_options[optname] = opt;
-			dhcp_names[opt] = optname;
+				std::string name;
+				std::vector<std::string> optargs;
+				parse_function( val, name, optargs );
+
+				bool has_string = false;
+				bool has_hex = false;
+				std::vector<Type> args;
+
+				for ( size_t i = 0; i < optargs.size(); ++i )
+				{
+					std::string type = optargs[i];
+
+					if ( type.empty() )
+						error( format( "No type at line {0}", count ) );
+
+					has_string = has_string || ( type == "string" );
+					has_hex = has_hex || ( type == "hex" );
+
+					if ( type == "ip" )
+						args.push_back( TYPE_ADDRESS );
+					else  if ( type == "mac" )
+						args.push_back( TYPE_HWADDR );
+					else  if ( type == "string" )
+						args.push_back( TYPE_STRING );
+					else  if ( type == "uint32" )
+						args.push_back( TYPE_UINT32 );
+					else  if ( type == "uint16" )
+						args.push_back( TYPE_UINT16 );
+					else  if ( type == "uint8" )
+						args.push_back( TYPE_UINT8 );
+					else  if ( type == "hex" )
+						args.push_back( TYPE_HEX );
+					else  if ( type == "..." )
+					{
+						if ( i+1 != optargs.size() )
+							error( "Expected '...' at the end of the argument list" );
+						if ( optargs.size() == 1 )
+							error( "Expected other type before '...'" );
+						args.push_back( TYPE_MORE );
+					}
+					else
+						error( format( "Unknown type '{0}' at line {1}", type, count ) );
+				}
+
+				if ( has_string && args.size() > 1 )
+					error( "Can only have a single string by itself in options" );
+				if ( has_hex && args.size() > 1 )
+					error( "Can only have a single hex by itself in options" );
+
+				dhcp_args[opt] = args;
+				dhcp_options[name] = opt;
+				dhcp_names[opt] = name;
+			}
+		}
+		catch ( std::exception &e )
+		{
+			throw std::runtime_error( format( "Error at line {0}: {1}", count, e.what() ) );
+		}
+		catch ( ... )
+		{
+			throw std::runtime_error( format( "Error at line {0}: unknown", count ) );
 		}
 	}
 }
