@@ -95,7 +95,7 @@ void getAllOptions( std::vector< std::tuple<uint32_t, uint32_t, std::string> > &
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query( "SELECT ip_addr_from, ip_addr_to, options FROM dhcp_options" );
+	std::string query( "SELECT ip_addr_from, ip_addr_to, options FROM dhcp_options ORDER BY ip_addr_from" );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
