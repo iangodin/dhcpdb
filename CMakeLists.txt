@@ -6,6 +6,7 @@ LINK_DIRECTORIES( /usr/lib64/mysql )
 
 ADD_EXECUTABLE( dhcpdb
 	format.cpp
+	strutils.cpp
 	option.cpp
 	error.cpp
 	backend.cpp
