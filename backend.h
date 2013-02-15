@@ -50,7 +50,7 @@ void getAllOptions( std::vector< std::tuple<uint32_t, uint32_t, std::string> > &
 void addHost( uint32_t ip, const uint8_t *mac );
 void removeHost( uint32_t ip );
 
-void addOption( uint32_t ip1, uint32_t ip2, const std::string &option );
+void addOption( uint32_t ip1, uint32_t ip2, const std::string &option, bool replace );
 void removeOption( uint32_t ip1, uint32_t ip2, const std::string &option );
 
 ////////////////////////////////////////

@@ -34,6 +34,7 @@ void print_usage( const std::string &prog )
 	std::cout << "  server [<pidfile>] - start a server (with optional pidfile)\n";
 	std::cout << "  options [<ip>] - show options for <ip> (or all when no ip)\n";
 	std::cout << "  add-option <ip> [<ip>] <option> - add option for IP range\n";
+	std::cout << "  replace-option <ip> [<ip>] <option> - replace option for IP range\n";
 	std::cout << "  remove-option <ip> [<ip>] <option> - remove option for IP range\n";
 	std::cout << "  add-host <ip> <mac> - add option for IP range\n";
 	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
@@ -174,7 +175,7 @@ int safemain( int argc, char *argv[] )
 				std::cout << format( "{0,w15} {1,w15} \"{2}\"", ip_lookup( std::get<0>( opt ) ), ip_lookup( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
 		}
 	}
-	else if ( command[0] == "add-option" )
+	else if ( command[0] == "add-option" || command[0] == "replace-option" )
 	{
 		threadStartBackend();
 		if ( command.size() != 3 && command.size() != 4 )
@@ -185,7 +186,7 @@ int safemain( int argc, char *argv[] )
 		if ( command.size() == 4 )
 			ip2 = dns_lookup( command[2].c_str() );
 		std::string opt = parse_option( command.back() );
-		addOption( ip1, ip2, opt );
+		addOption( ip1, ip2, opt, command[0] == "replace-option" );
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-option" )

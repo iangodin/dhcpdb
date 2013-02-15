@@ -225,19 +225,29 @@ void removeHost( uint32_t ip )
 
 ////////////////////////////////////////
 
-void addOption( uint32_t ip1, uint32_t ip2, const std::string &opt )
+void addOption( uint32_t ip1, uint32_t ip2, const std::string &opt, bool replace )
 {
 	std::unique_lock<std::mutex> lock( db_mutex );
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query = format(
-		"INSERT INTO dhcp_options ( ip_addr_from, ip_addr_to, options )"
+	std::string query;
+	if ( replace )
+	{
+		query = format( "UPDATE dhcp_options "
+			"SET options=x'{2,B16,f0,w2}' WHERE ( ip_addr_from = {0} AND ip_addr_to = {1} AND options LIKE x'{3,B16,f0,w2}25' )",
+			ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ), uint32_t( uint8_t( opt[0] ) ) );
+	}
+	else
+	{
+		query = format( "INSERT INTO dhcp_options ( ip_addr_from, ip_addr_to, options )"
 			"VALUES( {0}, {1}, x'{2,B16,f0,w2}' )",
-		ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ) );
+			ntohl( ip1 ), ntohl( ip2 ), as_hex<char>( opt ) );
+	}
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
+
 }
 
 ////////////////////////////////////////
