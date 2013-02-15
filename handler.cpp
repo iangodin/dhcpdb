@@ -436,11 +436,16 @@ void handleClientRequest( packet *p, uint32_t server_addr, packet_queue &queue )
 			break;
 
 		case DHCP_REQUEST:
-			if ( server == server_addr )
+			if ( server == server_addr || server == INADDR_ANY )
 			{
 				syslog( LOG_INFO, "Got REQUEST from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x' (for '%s' aka '%s')",
-						hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5], ip_lookup( ipaddr ).c_str(), hostname );
+					hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5], ip_lookup( ipaddr ).c_str(), hostname );
 				replyRequest( p, queue, ipaddr, server_addr, hostname );
+			}
+			else
+			{
+				syslog( LOG_INFO, "Ignore REQUEST for server %s from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
+						ip_lookup( server ).c_str(), hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 			}
 			break;
 
@@ -475,11 +480,17 @@ void handler( uint32_t server_addr, packet_queue &queue )
 	{
 		threadStartBackend();
 	}
-	catch ( ... )
+	catch ( std::exception &e )
 	{
-		error( "Thread couldn't start properly" );
+		syslog( LOG_CRIT, "Thread couldn't start properly: %s", e.what() );
+		throw;
 	}
 
+	catch ( ... )
+	{
+		syslog( LOG_CRIT, "Thread couldn't start properly" );
+		throw;
+	}
 	bool testing = false;
 	{
 		std::string test = configuration["testing"] ;
@@ -521,9 +532,15 @@ void handler( uint32_t server_addr, packet_queue &queue )
 	{
 		threadStopBackend();
 	}
+	catch ( std::exception &e )
+	{
+		syslog( LOG_ERR, "Thread couldn't shutdown properly: %s", e.what() );
+		throw;
+	}
 	catch ( ... )
 	{
 		syslog( LOG_ERR, "Thread couldn't shutdown properly" );
+		throw;
 	}
 }
 
