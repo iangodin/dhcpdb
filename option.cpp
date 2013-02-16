@@ -111,7 +111,7 @@ std::string parse_option( const std::string &opt )
 		error( format( "Unknown DHCP option '{0}'", name ) );
 
 	int o = dhcp_options[name];
-	std::vector<Type> &argtypes = dhcp_args[o];
+	std::vector<Type> argtypes = dhcp_args[o];
 
 	if ( argtypes.back() == TYPE_MORE )
 	{
@@ -182,7 +182,7 @@ std::string parse_option( const std::string &opt )
 			case TYPE_UINT8:
 			{
 				size += 1;
-				uint32_t n = std::stoul( args[0] );
+				uint32_t n = std::stoul( args[i] );
 				if ( n > 255 )
 					error( format( "Number (argument {0}) too large for option {1}", i, name ) );
 				ret.push_back( n );
@@ -227,11 +227,11 @@ std::string print_options( const std::string &opt )
 	ret += name->second;
 	ret.push_back( '(' );
 
-	std::vector<Type> &argtypes = dhcp_args[uint8_t(opt[0])];
+	std::vector<Type> argtypes = dhcp_args[uint8_t(opt[0])];
 
 	size_t p = 2;
 	Type last = TYPE_MORE;
-	for ( size_t i = 0; i < argtypes.size(); ++i )
+	for ( size_t i = 0; i < argtypes.size() && p != opt.size(); ++i )
 	{
 		if ( i > 0 )
 			ret.push_back( ',' );
@@ -239,7 +239,10 @@ std::string print_options( const std::string &opt )
 
 		Type atype = argtypes[i];
 		if ( atype == TYPE_MORE )
+		{
 			atype = last;
+			argtypes.push_back( TYPE_MORE );
+		}
 
 		if ( atype == TYPE_MORE )
 			error( "Invalid option specification" );
@@ -250,6 +253,7 @@ std::string print_options( const std::string &opt )
 				if ( p+4 > opt.size() )
 					error( "Not enough data for IP address" );
 				ret += format( "{0}", as_hex<char>( &opt[p], 4, '.' ) );
+				p += 4;
 				break;
 
 			case TYPE_HWADDR:
@@ -264,6 +268,7 @@ std::string print_options( const std::string &opt )
 				for ( int i = 0; i < 4; ++i )
 					n = ( n << 8 ) + uint8_t(opt[p+i]);
 				ret += format( "{0}", n );
+				p += 4;
 				break;
 			}
 
@@ -275,6 +280,7 @@ std::string print_options( const std::string &opt )
 				for ( int i = 0; i < 2; ++i )
 					n = ( n << 8 ) + uint8_t(opt[p+i]);
 				ret += format( "{0}", n );
+				p += 2;
 				break;
 			}
 
@@ -284,31 +290,42 @@ std::string print_options( const std::string &opt )
 					error( "Not enough data for uint8" );
 				uint32_t n = uint8_t(opt[p]);
 				ret += format( "{0}", n );
+				p += 1;
 				break;
 			}
 
 			case TYPE_STRING:
-				ret += opt.substr( p, size_t(uint8_t(opt[1])) );
+			{
+				size_t size = uint8_t( opt[1] );
+				ret += opt.substr( p, size );
+				p += size;
 				break;
+			}
 
 			case TYPE_HEX:
 			{
 				if ( opt.size() < 3 )
 					error( format( "Invalid option size {0}", opt.size() ) );
-				ret += format( "{0,B16,w2,f0}", as_hex<char>( opt.substr( 2, opt[1] ) ) );
+
+				size_t size = uint8_t( opt[1] );
+				ret += format( "{0,B16,w2,f0}", as_hex<char>( opt.substr( 2, size ) ) );
+				p += size;
 				break;
 			}
 
 			case TYPE_NAMES:
 			{
 				std::vector<std::string> names;
-				unpack_names( opt.substr( p, size_t(uint8_t(opt[1])) ), names );
+
+				size_t size = uint8_t( opt[1] );
+				unpack_names( opt.substr( p, size ), names );
 				for ( size_t i = 0; i < names.size(); ++i )
 				{
 					if ( i > 0 )
 						ret.append( ", " );
 					ret += names[i];
 				}
+				p += size;
 				break;
 			}
 
