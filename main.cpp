@@ -171,8 +171,10 @@ int safemain( int argc, char *argv[] )
 		{
 			std::vector<std::tuple<uint32_t, uint32_t, std::string>> options;
 			getAllOptions( options );
+			std::cout << format( "{0,w15,al} {1,w15,al} \"{2}\"", std::string( "IP from" ), std::string( "IP to" ), std::string( "options" ) ) << std::endl;
+			std::cout << format( "{0,w15,al,f-} {1,w15,al,f-} {2,w15,f-}", std::string(), std::string(), std::string() ) << std::endl;
 			for ( auto opt: options )
-				std::cout << format( "{0,w15} {1,w15} \"{2}\"", ip_lookup( std::get<0>( opt ) ), ip_lookup( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
+				std::cout << format( "{0,w15,al} {1,w15,al} \"{2}\"", ip_lookup( std::get<0>( opt ) ), ip_lookup( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
 		}
 	}
 	else if ( command[0] == "add-option" || command[0] == "replace-option" )
