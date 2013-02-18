@@ -84,6 +84,9 @@ void print_usage( const std::string &prog )
 				case TYPE_HEX:
 					std::cout << "0123456789ABCDEF";
 					break;
+				case TYPE_NAMES:
+					std::cout << "domain.com";
+					break;
 				case TYPE_MORE:
 					std::cout << "...";
 					break;
