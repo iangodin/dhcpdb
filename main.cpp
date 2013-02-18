@@ -37,8 +37,10 @@ void print_usage( const std::string &prog )
 	std::cout << "  replace-option <ip> [<ip>] <option> - replace option for IP range\n";
 	std::cout << "  remove-option <ip> [<ip>] <option> - remove option for IP range\n";
 	std::cout << "  add-host <ip> <mac> - add option for IP range\n";
+	std::cout << "  replace-host <ip> [<new_ip>] <mac> - replace the given IP with a new MAC (and IP) address\n";
 	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
-	std::cout << "  list-all <mac> - list IP addresses for a MAC address\n";
+	std::cout << "  leases - list all leases\n";
+	std::cout << "  list-all [<mac>] - list IP addresses (for a MAC address)\n";
 	std::cout << "  list-available <mac> - list available IP addresses for a MAC address\n";
 	std::cout << "  encode <option> ... - encode the option into a hex string\n";
 	std::cout << "  decode <hex> ... - decode the hex option into something readable\n";
@@ -171,10 +173,8 @@ int safemain( int argc, char *argv[] )
 		{
 			std::vector<std::tuple<uint32_t, uint32_t, std::string>> options;
 			getAllOptions( options );
-			std::cout << format( "{0,w15,al} {1,w15,al} \"{2}\"", std::string( "IP from" ), std::string( "IP to" ), std::string( "options" ) ) << std::endl;
-			std::cout << format( "{0,w15,al,f-} {1,w15,al,f-} {2,w15,f-}", std::string(), std::string(), std::string() ) << std::endl;
 			for ( auto opt: options )
-				std::cout << format( "{0,w15,al} {1,w15,al} \"{2}\"", ip_lookup( std::get<0>( opt ) ), ip_lookup( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
+				std::cout << format( "{0}\t{1}\t{2}", ip_string( std::get<0>( opt ) ), ip_string( std::get<1>( opt ) ), print_options( std::get<2>( opt ) ) ) << std::endl;
 		}
 	}
 	else if ( command[0] == "add-option" || command[0] == "replace-option" )
@@ -189,6 +189,7 @@ int safemain( int argc, char *argv[] )
 			ip2 = dns_lookup( command[2].c_str() );
 		std::string opt = parse_option( command.back() );
 		addOption( ip1, ip2, opt, command[0] == "replace-option" );
+		std::cout << format( "{0}\t{1}\t{2}", ip_string( ip1 ), ip_string( ip2 ), print_options( opt ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-option" )
@@ -209,11 +210,29 @@ int safemain( int argc, char *argv[] )
 	{
 		threadStartBackend();
 		if ( command.size() != 3 )
-			error( "Command 'host' needs 2 arguments: host <ip> <mac>" );
+			error( "Command 'add-host' needs 2 arguments: add-host <ip> <mac>" );
 
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		std::string mac = parse_mac( command[2] );
 		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
+		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, '-' ) ) << std::endl;
+		threadStopBackend();
+	}
+	else if ( command[0] == "replace-host" )
+	{
+		threadStartBackend();
+		if ( command.size() > 4 || command.size() < 3 )
+			error( "Command 'replace-host' needs 2 or 3 arguments: replace-host <ip> [<new_ip>] <mac>" );
+
+		uint32_t ip = dns_lookup( command[1].c_str() );
+		removeHost( ip );
+
+		if ( command.size() == 4 )
+			ip = dns_lookup( command[2].c_str() );
+		std::string mac = parse_mac( command.back() );
+		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
+		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, '-' ) ) << std::endl;
+
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-host" )
@@ -226,18 +245,43 @@ int safemain( int argc, char *argv[] )
 		removeHost( ip );
 		threadStopBackend();
 	}
+	else if ( command[0] == "leases" )
+	{
+		threadStartBackend();
+
+		if ( command.size() > 1 )
+			error( "Command 'leases' needs no argument: leases" );
+
+		std::vector< std::tuple<uint32_t,std::string,std::string> > leases;
+		getAllLeases( leases );
+		for ( auto l: leases )
+			std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}\t{3}", ip_string( std::get<0>( l ) ), ip_lookup( std::get<0>( l ) ), as_hex<char>( std::get<1>( l ), '-' ), std::get<2>( l ) ) << std::endl;
+
+		threadStopBackend();
+	}
 	else if ( command[0] == "list-all" )
 	{
 		threadStartBackend();
-		if ( command.size() != 2 )
-			error( "Command 'list-all' needs 1 argument: list-all <mac>" );
+		if ( command.size() > 2 )
+			error( "Command 'list-all' needs at most 1 argument: list-all [<mac>]" );
 
-		std::string mac = parse_mac( command[1] );
-		std::vector<uint32_t> ips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ) );
-		for ( size_t i = 0; i < ips.size(); ++i )
-			std::cout << as_hex<uint8_t>( reinterpret_cast<uint8_t*>(&ips[i]), 4, '.' ) << std::endl;
-		if ( ips.empty() )
-			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, ':' ) ) << std::endl;
+		if ( command.size() > 1 )
+		{
+			std::string mac = parse_mac( command[1] );
+			std::vector<uint32_t> ips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ) );
+			for ( size_t i = 0; i < ips.size(); ++i )
+				std::cout << as_hex<uint8_t>( reinterpret_cast<uint8_t*>(&ips[i]), 4, '.' ) << std::endl;
+			if ( ips.empty() )
+				std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, '-' ) ) << std::endl;
+		}
+		else
+		{
+			std::vector< std::pair<uint32_t,std::string> > hosts;
+			getAllHosts( hosts );
+			for ( auto h: hosts )
+				std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( h.first ), ip_lookup( h.first ), as_hex<char>( h.second, '-' ) ) << std::endl;
+		}
+
 		threadStopBackend();
 	}
 	else if ( command[0] == "list-available" )
@@ -251,7 +295,7 @@ int safemain( int argc, char *argv[] )
 		for ( size_t i = 0; i < ips.size(); ++i )
 			std::cout << ip_lookup( ips[i] ) << std::endl;
 		if ( ips.empty() )
-			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, ':' ) ) << std::endl;
+			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, '-' ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "decode" )
@@ -262,7 +306,7 @@ int safemain( int argc, char *argv[] )
 		for ( size_t i = 1; i < command.size(); ++i )
 		{
 			std::string o = print_options( from_hex( command[i] ) );
-			std::cout << '\"' << o << '\"' << std::endl;
+			std::cout << o << std::endl;
 		}
 	}
 	else if ( command[0] == "encode" )
@@ -353,11 +397,11 @@ int main( int argc, char *argv[] )
 	}
 	catch ( std::exception &e )
 	{
-		std::cerr << "Fatal error: " << e.what() << std::endl;
+		std::cout << "Fatal error: " << e.what() << std::endl;
 	}
 	catch ( ... )
 	{
-		std::cerr << "Fatal error: unknown" << std::endl;
+		std::cout << "Fatal error: unknown" << std::endl;
 	}
 
 	return -1;
