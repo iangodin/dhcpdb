@@ -87,12 +87,13 @@ std::string parse_mac( const std::string &opt )
 	std::string ret( 6, '\0' );
 
 	size_t p = 0;
-	for ( size_t i = 0; i < ret.size(); ++i )
+	for ( size_t i = 0; i < ret.size() && p < opt.size(); ++i )
 	{
-		size_t tmp = p;
-		uint32_t v = std::stoi( opt.substr( p ), &tmp, 16 );
+		uint32_t v = std::stoi( opt.substr( p, 2 ), NULL, 16 );
 		ret[i] = v;
-		p += tmp + 1;
+		p += 2;
+		while( !std::isxdigit( opt[p] ) && p < opt.size() )
+			++p;
 	}
 
 	return ret;
