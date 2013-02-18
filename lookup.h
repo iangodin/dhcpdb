@@ -23,31 +23,20 @@
 #pragma once
 
 #include <stdint.h>
-
-struct packet;
+#include <string>
 
 ////////////////////////////////////////
 
-class udp_socket
-{
-public:
-	// Open a socket and bind it to the addr/port (for a server).
-	udp_socket( uint32_t addr, uint64_t port, bool broadcast );
+// Lookup name and return IP address.
+uint32_t dns_lookup( const char *name );
 
-	~udp_socket( void );
+// Lookup IP address and return name.
+// If numeric is true, IPs not found will return the numerical IP address.
+// If fqdn is true, returns the fully qualified domain name, otherwise the short name.
+std::string ip_lookup( uint32_t ip, bool numeric = true, bool fqdn = true );
 
-	// Receive a packet from the socket.
-	// Blocks until a packet arrives.
-	void recv( packet *p );
-
-	// Send a packet to 'dest'.
-	void send( uint32_t dest, uint16_t port, packet *p );
-
-	int fd( void ) const { return _fd; }
-
-private:
-	int _fd;
-};
+// Returns the numerical (dot) IP address as a string.
+std::string ip_string( uint32_t ip );
 
 ////////////////////////////////////////
 

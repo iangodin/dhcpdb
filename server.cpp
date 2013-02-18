@@ -21,6 +21,7 @@
 //
 
 #include "packet.h"
+#include "lookup.h"
 #include "udp_socket.h"
 #include "error.h"
 #include "handler.h"

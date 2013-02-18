@@ -24,7 +24,7 @@
 #include "packet.h"
 #include "format.h"
 #include "option.h"
-#include "udp_socket.h"
+#include "lookup.h"
 
 #include <arpa/inet.h>
 

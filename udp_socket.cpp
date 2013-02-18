@@ -4,6 +4,7 @@
 #include "error.h"
 #include "packet.h"
 #include "format.h"
+#include "lookup.h"
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -17,97 +18,6 @@
 
 #include <exception>
 
-////////////////////////////////////////
-
-uint32_t dns_lookup( const char *name )
-{
-	uint32_t ret = 0;
-
-	// Try a numeric address first.
-	if ( inet_pton( AF_INET, name, &ret ) == 1 )
-		return ret;
-
-	struct addrinfo *res0 = NULL;
-	int err = EAI_AGAIN;
-	struct addrinfo hints;
-
-	memset( &hints, 0, sizeof(hints) );
-	hints.ai_family = AF_INET;
-
-	while ( err == EAI_AGAIN )
-		err = getaddrinfo( name, NULL, &hints, &res0 );
-
-	if ( err == 0 )
-	{
-		struct addrinfo *res = res0;
-		for ( ; res; res=res->ai_next )
-		{
-			if ( res->ai_addrlen == sizeof(struct sockaddr_in) )
-				break;
-		}
-
-		if ( res )
-		{
-			struct sockaddr_in *a = (struct sockaddr_in *)( res->ai_addr );
-			ret = a->sin_addr.s_addr;
-		}
-
-		freeaddrinfo( res0 );
-
-		if ( !res )
-			error( std::string( "Name lookup failed " ) + name );
-	}
-	else
-		error( std::string( "Name lookup failed " ) + name );
-
-	if ( ret == 0 )
-		error( std::string( "Name lookup failed " ) + name );
-
-	return ret;
-}
-
-////////////////////////////////////////
-
-std::string ip_lookup( uint32_t ip, bool numeric, bool fqdn )
-{
-	if ( ip == 0 )
-		return "0.0.0.0";
-
-	if ( ip == INADDR_BROADCAST )
-		return "255.255.255.255";
-
-	char node[NI_MAXHOST];
-
-	struct sockaddr_in sa;
-	sa.sin_family = AF_INET;
-	sa.sin_addr.s_addr = ip;
-
-	int err = EAI_AGAIN;
-	int flags = 0;
-	if ( !numeric )
-		flags |= NI_NAMEREQD;
-	if ( !fqdn )
-		flags |= NI_NOFQDN;
-	while ( err == EAI_AGAIN )
-		err = getnameinfo( (struct sockaddr*)&sa, sizeof(sa), node, sizeof(node), NULL, 0, NI_NOFQDN );
-
-	if ( err != 0 )
-	{
-		// Try a numeric address...
-		if ( !numeric || ( inet_ntop( AF_INET, &ip, node, sizeof(node) ) == NULL ) )
-			error( std::string( "IP lookup failed: " ) + gai_strerror( err ) );
-	}
-
-	return std::string( node );
-}
-
-std::string ip_string( uint32_t ip )
-{
-	char node[NI_MAXHOST];
-	if ( inet_ntop( AF_INET, &ip, node, sizeof(node) ) == NULL )
-		error( std::string( "IP lookup failed: " ) + strerror( errno ) );
-	return std::string( node );
-}
 ////////////////////////////////////////
 
 udp_socket::udp_socket( uint32_t addr, uint64_t port, bool broadcast )

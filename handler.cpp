@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <set>
 
+#include "lookup.h"
 #include "udp_socket.h"
 #include "packet.h"
 #include "packet_queue.h"
@@ -196,11 +197,8 @@ void replyDiscover( packet *p, packet_queue &q, uint32_t ip, uint32_t server_ip,
 	udp_socket client( server_ip, 67, true );
 	client.send( INADDR_BROADCAST, 68, reply );
 
-	IPAddr client_ip;
-	client_ip.addr = reply->yiaddr;
-	syslog( LOG_INFO, "Offered %d.%d.%d.%d to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
-		client_ip.bytes[0], client_ip.bytes[1], client_ip.bytes[2], client_ip.bytes[3],
-		hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
+	syslog( LOG_INFO, "Offered %s to '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'",
+		ip_string( reply->yiaddr ).c_str(), hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 
 	q.free( reply );
 }

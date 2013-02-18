@@ -16,6 +16,7 @@
 #include "backend.h"
 #include "format.h"
 #include "server.h"
+#include "lookup.h"
 #include "udp_socket.h"
 #include "packet.h"
 #include "handler.h"

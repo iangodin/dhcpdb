@@ -5,7 +5,7 @@
 #include "format.h"
 #include "config.h"
 #include "error.h"
-#include "udp_socket.h"
+#include "lookup.h"
 #include "strutils.h"
 
 ////////////////////////////////////////
