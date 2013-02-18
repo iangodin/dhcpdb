@@ -89,13 +89,73 @@ void threadStopBackend( void )
 
 ////////////////////////////////////////
 
+void getAllLeases( std::vector< std::tuple<uint32_t, std::string, std::string> > &hosts )
+{
+	std::unique_lock<std::mutex> lock( db_mutex );
+	MYSQL *db = dbs[std::this_thread::get_id()];
+	lock.unlock();
+
+	std::string query( "SELECT ip_addr, mac_addr, DATE_FORMAT( expiration, '%Y-%m-%dT%TZ') as expire FROM dhcp_lease ORDER BY ip_addr" );
+
+	if ( mysql_query( db, query.c_str() ) != 0 )
+		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
+
+	MYSQL_RES *result = mysql_store_result( db );
+	auto freeres = make_guard( [=](){ mysql_free_result( result ); } );
+
+	if ( result == NULL )
+		error( std::string( "Error storing result from mysql: " ) + mysql_error( db ) );
+
+	MYSQL_ROW row;
+	while ( ( row = mysql_fetch_row( result ) ) )
+	{
+		unsigned long *lengths = mysql_fetch_lengths( result );
+		hosts.emplace_back(
+			htonl( std::stoul( std::string( row[0], lengths[0] ) ) ),
+			std::string( row[1], lengths[1] ),
+			std::string( row[2], lengths[2] )
+		);
+	}
+}
+
+////////////////////////////////////////
+
+void getAllHosts( std::vector< std::pair<uint32_t, std::string> > &hosts )
+{
+	std::unique_lock<std::mutex> lock( db_mutex );
+	MYSQL *db = dbs[std::this_thread::get_id()];
+	lock.unlock();
+
+	std::string query( "SELECT ip_addr, mac_addr FROM dhcp_host ORDER BY ip_addr" );
+
+	if ( mysql_query( db, query.c_str() ) != 0 )
+		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
+
+	MYSQL_RES *result = mysql_store_result( db );
+	auto freeres = make_guard( [=](){ mysql_free_result( result ); } );
+
+	if ( result == NULL )
+		error( std::string( "Error storing result from mysql: " ) + mysql_error( db ) );
+
+	MYSQL_ROW row;
+	while ( ( row = mysql_fetch_row( result ) ) )
+	{
+		unsigned long *lengths = mysql_fetch_lengths( result );
+		hosts.emplace_back(
+			htonl( std::stoul( std::string( row[0], lengths[0] ) ) ),
+			std::string( row[1], lengths[1] ) );
+	}
+}
+
+////////////////////////////////////////
+
 void getAllOptions( std::vector< std::tuple<uint32_t, uint32_t, std::string> > &options )
 {
 	std::unique_lock<std::mutex> lock( db_mutex );
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query( "SELECT ip_addr_from, ip_addr_to, options FROM dhcp_options ORDER BY ip_addr_from" );
+	std::string query( "SELECT ip_addr_from, ip_addr_to, options FROM dhcp_options ORDER BY ip_addr_from, ip_addr_to, options" );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
