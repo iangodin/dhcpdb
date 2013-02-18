@@ -166,7 +166,7 @@ std::string parse_option( const std::string &opt )
 			case TYPE_UINT32:
 			{
 				size += 4;
-				uint32_t ip = std::stoul( args[i] );
+				uint32_t ip = htonl( std::stoul( args[i] ) );
 				ret.append( reinterpret_cast<const char *>(&ip), 4 );
 				break;
 			}
