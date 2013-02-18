@@ -70,6 +70,12 @@ uint32_t dns_lookup( const char *name )
 
 std::string ip_lookup( uint32_t ip, bool numeric, bool fqdn )
 {
+	if ( ip == 0 )
+		return "0.0.0.0";
+
+	if ( ip == INADDR_BROADCAST )
+		return "255.255.255.255";
+
 	char node[NI_MAXHOST];
 
 	struct sockaddr_in sa;
@@ -95,6 +101,13 @@ std::string ip_lookup( uint32_t ip, bool numeric, bool fqdn )
 	return std::string( node );
 }
 
+std::string ip_string( uint32_t ip )
+{
+	char node[NI_MAXHOST];
+	if ( inet_ntop( AF_INET, &ip, node, sizeof(node) ) == NULL )
+		error( std::string( "IP lookup failed: " ) + strerror( errno ) );
+	return std::string( node );
+}
 ////////////////////////////////////////
 
 udp_socket::udp_socket( uint32_t addr, uint64_t port, bool broadcast )

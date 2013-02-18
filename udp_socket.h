@@ -40,6 +40,7 @@ typedef union
 // Lookup name
 uint32_t dns_lookup( const char *name );
 std::string ip_lookup( uint32_t ip, bool numeric = true, bool fqdn = true );
+std::string ip_string( uint32_t ip );
 
 ////////////////////////////////////////
 
