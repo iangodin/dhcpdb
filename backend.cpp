@@ -191,7 +191,7 @@ std::vector<uint32_t> getIPAddresses( const uint8_t *hwaddr, bool avail )
 		query = format (
 			"SELECT ip_addr FROM dhcp_host "
 				"WHERE ( mac_addr=x'{0,B16,f0,w2}' OR mac_addr=x'000000000000' ) "
-				"AND ip_addr NOT IN ( SELECT ip_addr FROM dhcp_lease WHERE mac_addr <> x'{0,B16,f0,w2}' AND expiration > NOW()' ) "
+				"AND ip_addr NOT IN ( SELECT ip_addr FROM dhcp_lease WHERE mac_addr <> x'{0,B16,f0,w2}' AND expiration > NOW() ) "
 				"ORDER BY mac_addr DESC, dhcp_host.ip_addr ASC",
 			as_hex<uint8_t>( hwaddr, 6 ) );
 	}
@@ -345,8 +345,7 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 	}
 
 	query = format( "UPDATE dhcp_lease "
-			"SET expiration=TIMESTAMPADD( SECOND, {2}, NOW() ),"
-			"SET mac_addr=x'{1,B16,f0,w2}' "
+			"SET expiration=TIMESTAMPADD( SECOND, {2}, NOW() ), mac_addr=x'{1,B16,f0,w2}' "
 			"WHERE ip_addr = {0} AND ( mac_addr = x'{1,B16,f0,w2}' OR expiration <= NOW() )",
 		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
 
