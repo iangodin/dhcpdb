@@ -95,7 +95,7 @@ void getAllLeases( std::vector< std::tuple<uint32_t, std::string, std::string> >
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query( "SELECT ip_addr, mac_addr, DATE_FORMAT( expiration, '%Y-%m-%dT%TZ') as expire FROM dhcp_lease ORDER BY ip_addr" );
+	std::string query( "SELECT ip_addr, mac_addr, DATE_FORMAT( expiration, '%Y-%m-%dT%T') as expire FROM dhcp_lease ORDER BY ip_addr" );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		error( std::string( "Error querying mysql: " ) + mysql_error( db ) );
