@@ -54,9 +54,8 @@ void threadStartBackend( void )
 	std::string dbuser = configuration["dbuser"];
 	std::string dbpassword = configuration["dbpassword"];
 
-
 	if ( dbhost.empty() || database.empty() || dbuser.empty() || dbpassword.empty() )
-		error( "Invalid configuration file" );
+		error( "Invalid configuration of database" );
 
 	mysql_thread_init();
 	MYSQL *db = mysql_init( NULL );
