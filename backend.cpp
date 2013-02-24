@@ -375,10 +375,16 @@ bool releaseLease( uint32_t ip, const uint8_t *hwaddr )
 	MYSQL *db = dbs[std::this_thread::get_id()];
 	lock.unlock();
 
-	std::string query = format(
-		"DELETE FROM dhcp_lease "
+	std::string query;
+
+	if ( hwaddr )
+	{
+		query = format( "DELETE FROM dhcp_lease "
 			"WHERE ip_addr = {0} AND mac_addr = x'{1,B16,f0,w2}'",
 		ntohl( ip ), as_hex<uint8_t>(hwaddr) );
+	}
+	else
+		query = format( "DELETE FROM dhcp_lease " "WHERE ip_addr = {0}", ntohl( ip ) );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 		return false;

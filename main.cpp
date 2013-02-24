@@ -41,6 +41,7 @@ void print_usage( const std::string &prog )
 	std::cout << "  replace-host <ip> [<new_ip>] <mac> - replace the given IP with a new MAC (and IP) address\n";
 	std::cout << "  remove-host <ip> - remove a host with a IP address\n";
 	std::cout << "  leases - list all leases\n";
+	std::cout << "  release-lease <ip> ... - release the lease for IP address(es)\n";
 	std::cout << "  list-all [<mac>] - list IP addresses (for a MAC address)\n";
 	std::cout << "  list-available <mac> - list available IP addresses for a MAC address\n";
 	std::cout << "  encode <option> ... - encode the option into a hex string\n";
@@ -260,6 +261,23 @@ int safemain( int argc, char *argv[] )
 		getAllLeases( leases );
 		for ( auto l: leases )
 			std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}\t{3}", ip_string( std::get<0>( l ) ), ip_lookup( std::get<0>( l ) ), as_hex<char>( std::get<1>( l ), '-' ), std::get<2>( l ) ) << std::endl;
+
+		threadStopBackend();
+	}
+	else if ( command[0] == "release-lease" )
+	{
+		threadStartBackend();
+
+		if ( command.size() < 2 )
+			error( "Command 'release-lease' needs at lease 1 argument: release-lease <ip> ..." );
+
+		for ( size_t i = 1; i < command.size(); ++i )
+		{
+			uint32_t ip = dns_lookup( command[i].c_str() );
+
+			if ( !releaseLease( ip ) )
+				std::cerr << "Could not release lease for " << command[i] << std::endl;
+		}
 
 		threadStopBackend();
 	}

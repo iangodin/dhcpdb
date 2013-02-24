@@ -64,7 +64,7 @@ void removeOption( uint32_t ip1, uint32_t ip2, const std::string &option );
 bool acquireLease( uint32_t ip, const uint8_t *mac, uint32_t time );
 
 // Release the lease with the given IP and MAC address.
-bool releaseLease( uint32_t ip, const uint8_t *mac );
+bool releaseLease( uint32_t ip, const uint8_t *mac = NULL );
 
 ////////////////////////////////////////
 
