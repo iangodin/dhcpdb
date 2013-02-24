@@ -147,6 +147,48 @@ std::string parse_option( const std::string &opt )
 				break;
 			}
 
+			case TYPE_ROUTE:
+			{
+				size_t n1 = args[i].find_first_of( '/' );
+				size_t n2 = args[i].find_first_of( ':' );
+				if ( n1 == std::string::npos )
+					error( "Missing '/' in route subnet" );
+				if ( n2 == std::string::npos )
+					error( "Missing ':' in route" );
+				if ( n2 < n1 )
+					error( "Route should be after subnet" );
+
+				std::string subnet = trim( args[i].substr( 0, n1 ) );
+				std::string bits = trim( args[i].substr( n1+1, n2 - n1 ) );
+				std::string router = trim( args[i].substr( n2 ) );
+
+				int nbits = std::stoi( bits );
+				if ( nbits < 0 || nbits > 32 )
+					error( format( "Invalid number of bits {0}", nbits ) );
+
+				ret.push_back( nbits );
+
+				uint32_t subnetip = ntohl( dns_lookup( subnet.c_str() ) );
+				if ( nbits > 0 )
+				{
+					ret.push_back( ( subnetip >> 24 ) & 0xFF );
+					if ( nbits > 8 )
+					{
+						ret.push_back( ( subnetip >> 16 ) & 0xFF );
+						if ( nbits > 16 )
+						{
+							ret.push_back( ( subnetip >> 8 ) & 0xFF );
+							if ( nbits > 24 )
+								ret.push_back( subnetip & 0xFF );
+						}
+					}
+				}
+
+				uint32_t routerip = dns_lookup( subnet.c_str() );
+				ret.append( std::string( reinterpret_cast<const char*>(&routerip), 4 ) );
+				break;
+			}
+
 			case TYPE_HWADDR:
 				error( "Not yet implemented" );
 				break;
@@ -256,6 +298,24 @@ std::string print_options( const std::string &opt )
 				ret += format( "{0}", as_hex<char>( &opt[p], 4, '.' ) );
 				p += 4;
 				break;
+
+			case TYPE_ROUTE:
+			{
+				int nbits = opt[p++];
+				uint32_t subnet[4] = { 0, 0, 0, 0 };
+				uint32_t router = 0;
+				if ( nbits > 0 )
+					subnet[0] = uint8_t(opt[p++]);
+				if ( nbits > 8 )
+					subnet[1] = uint8_t(opt[p++]);
+				if ( nbits > 16 )
+					subnet[2] = uint8_t(opt[p++]);
+				if ( nbits > 24 )
+					subnet[3] = uint8_t(opt[p++]);
+				ret += format( "{0}.{1}.{2}.{3}/{4}:{5}", subnet[0], subnet[1], subnet[2], subnet[3], nbits, as_hex<char>( &opt[p], 4, '.' ) );
+				p += 4;
+				break;
+			}
 
 			case TYPE_HWADDR:
 				error( "Not yet implemented" );

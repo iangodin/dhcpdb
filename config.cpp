@@ -65,6 +65,8 @@ void parse_config( const std::string &filename )
 
 					if ( type == "ip" )
 						args.push_back( TYPE_ADDRESS );
+					else if ( type == "route" )
+						args.push_back( TYPE_ROUTE );
 					else  if ( type == "mac" )
 						args.push_back( TYPE_HWADDR );
 					else  if ( type == "uint32" )

@@ -17,6 +17,7 @@ enum Type
 	TYPE_UINT8,
 	TYPE_HEX,
 	TYPE_NAMES,
+	TYPE_ROUTE,
 	TYPE_MORE,
 };
 

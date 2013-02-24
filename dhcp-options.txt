@@ -24,6 +24,6 @@
 094 = interface( uint8, ... )
 097 = uuid( hex )
 119 = domain_search( names )
-121 = classless_routes( uint8, ... )
+121 = classless_routes( route, ... )
 175 = etherboot( hex )
-249 = ms_classless_routes( uint8, ... )
+249 = ms_classless_routes( route, ... )
