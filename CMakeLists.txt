@@ -29,4 +29,5 @@ INSTALL( TARGETS dhcpdb RUNTIME DESTINATION bin )
 INSTALL( FILES sample.conf DESTINATION /etc RENAME dhcpdb.conf )
 INSTALL( PROGRAMS dhcpdb.init DESTINATION /etc/init.d RENAME dhcpdb )
 INSTALL( FILES dhcpdb.default DESTINATION /etc/sysconfig RENAME dhcpdb )
+INSTALL( FILES dhcp-options.txt DESTINATION /usr/share/dhcpdb )
 

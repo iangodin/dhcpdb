@@ -28,8 +28,7 @@ int safemain( int argc, char *argv[] );
 
 void print_usage( const std::string &prog )
 {
-	std::cout << "Usage:\t" << prog << " [<config>] [<command> ...]\n";
-	std::cout << "  <config> Configuration file as absolute path (starting with /)\n";
+	std::cout << "Usage:\t" << prog << " <command> ...\n";
 	std::cout << "  <command> Commend to execute (with arguments)\n";
 	std::cout << "\nCommands:\n";
 	std::cout << "  server [<pidfile>] - start a server (with optional pidfile)\n";
@@ -102,24 +101,16 @@ void print_usage( const std::string &prog )
 
 int safemain( int argc, char *argv[] )
 {
-	std::string config = "/etc/dhcpdb.conf";
 	std::vector<std::string> command;
-
 	for ( int i = 1; i < argc; ++i )
 	{
 		std::string arg( argv[i] );
 		if ( arg.empty() )
 			continue;
-
-		if ( i == 1 && arg[0] == '/' )
-			config = arg;
-		else if ( i == 1 && arg[0] == '.' )
-			config = arg;
-		else
-			command.push_back( arg );
+		command.push_back( arg );
 	}
 
-	parse_config( config );
+	parse_config( "/usr/share/dhcpdb/dhcp-options.txt" );
 
 	// No command?
 	if ( command.empty() )
@@ -133,6 +124,7 @@ int safemain( int argc, char *argv[] )
 		if ( command.size() > 2 )
 			error( "Command 'server' has 1 optional argument: server <pidfile>" );
 
+		parse_config( "/etc/dhcpdb.conf" );
 		if ( command.size() < 1 )
 			command.push_back( std::string() );
 
