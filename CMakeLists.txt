@@ -27,4 +27,6 @@ TARGET_LINK_LIBRARIES( dhcpdb
 
 INSTALL( TARGETS dhcpdb DESTINATION bin )
 INSTALL( FILES sample.conf DESTINATION /etc RENAME dhcpdb.conf )
+INSTALL( FILES dhcpdb.init DESTINATION /etc/init.d RENAME dhcpdb )
+INSTALL( FILES dhcpdb.default DESTINATION /etc/sysconfig RENAME dhcpdb )
 
