@@ -25,3 +25,6 @@ TARGET_LINK_LIBRARIES( dhcpdb
 	mysqlclient
 )
 
+INSTALL( TARGETS dhcpdb DESTINATION bin )
+INSTALL( FILES sample.conf DESTINATION /etc RENAME dhcpdb.conf )
+
