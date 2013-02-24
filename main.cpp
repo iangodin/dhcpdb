@@ -111,6 +111,7 @@ int safemain( int argc, char *argv[] )
 	}
 
 	parse_config( "/usr/share/dhcpdb/dhcp-options.txt" );
+	parse_config( "/etc/dhcpdb.conf" );
 
 	// No command?
 	if ( command.empty() )
@@ -124,7 +125,6 @@ int safemain( int argc, char *argv[] )
 		if ( command.size() > 2 )
 			error( "Command 'server' has 1 optional argument: server <pidfile>" );
 
-		parse_config( "/etc/dhcpdb.conf" );
 		if ( command.size() < 1 )
 			command.push_back( std::string() );
 
