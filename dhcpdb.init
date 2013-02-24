@@ -1,0 +1,117 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides: dhcpd
+# Required-Start: $local_fs $network $syslog
+# Required-Stop: $local_fs $syslog
+# Should-Start: $syslog
+# Should-Stop: $network $syslog
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start up the DHCP server daemon
+# Description:       DHCP is a protocol for configuring network hosts
+#		     This service starts up the DHCP server daemon.
+### END INIT INFO
+
+# source function library
+. /etc/rc.d/init.d/functions
+
+# pull in sysconfig settings
+[ -f /etc/sysconfig/dhcpdb ] && . /etc/sysconfig/dhcpdb
+
+RETVAL=0
+prog="dhcpdb"
+lockfile=/var/lock/subsys/$prog
+
+# Some functions to make the below more readable
+DHCPDB=/usr/bin/dhcpdb
+PID_FILE=/var/run/dhcpdb.pid
+
+runlevel=$(set -- $(runlevel); eval "echo \$$#" )
+
+start()
+{
+	[ -x $DHCPDB ] || exit 5
+
+	echo -n $"Starting $prog: "
+	$DHCPDB $OPTIONS server $PID_FILE && success || failure
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && touch $lockfile
+	echo
+	return $RETVAL
+}
+
+stop()
+{
+	echo -n $"Stopping $prog: "
+	if [ -n "`pidfileofproc $DHCPDB`" ] ; then
+	    killproc $DHCPDB
+	else
+	    failure $"Stopping $prog"
+	fi
+	RETVAL=$?
+	[ $RETVAL -eq 0 ] && rm -f $lockfile
+	echo
+}
+
+restart() {
+	stop
+	start
+}
+
+force_reload() {
+	restart
+}
+
+rh_status() {
+	status -p $PID_FILE dhcpdb
+}
+
+rh_status_q() {
+	rh_status >/dev/null 2>&1
+}
+
+case "$1" in
+	start)
+		rh_status_q && exit 0
+		start
+		;;
+	stop)
+		if ! rh_status_q; then
+			rm -f $lockfile
+			exit 0
+		fi
+		stop
+		;;
+	restart)
+		restart
+		;;
+	force-reload)
+		force_reload
+		;;
+	condrestart|try-restart)
+		rh_status_q || exit 0
+		if [ -f $lockfile ] ; then
+			do_restart_sanity_check
+			if [ $RETVAL -eq 0 ] ; then
+				stop
+				# avoid race
+				sleep 3
+				start
+			else
+				RETVAL=6
+			fi
+		fi
+		;;
+	status)
+		rh_status
+		RETVAL=$?
+		if [ $RETVAL -eq 3 -a -f $lockfile ] ; then
+			RETVAL=2
+		fi
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|force-reload|condrestart|try-restart|status}"
+		RETVAL=2
+esac
+exit $RETVAL
