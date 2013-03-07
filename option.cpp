@@ -160,32 +160,40 @@ std::string parse_option( const std::string &opt )
 
 				std::string subnet = trim( args[i].substr( 0, n1 ) );
 				std::string bits = trim( args[i].substr( n1+1, n2 - n1 ) );
-				std::string router = trim( args[i].substr( n2 ) );
+				std::string router = trim( args[i].substr( n2+1 ) );
 
 				int nbits = std::stoi( bits );
 				if ( nbits < 0 || nbits > 32 )
 					error( format( "Invalid number of bits {0}", nbits ) );
 
 				ret.push_back( nbits );
+				size++;
 
 				uint32_t subnetip = ntohl( dns_lookup( subnet.c_str() ) );
 				if ( nbits > 0 )
 				{
 					ret.push_back( ( subnetip >> 24 ) & 0xFF );
+					size++;
 					if ( nbits > 8 )
 					{
 						ret.push_back( ( subnetip >> 16 ) & 0xFF );
+						size++;
 						if ( nbits > 16 )
 						{
 							ret.push_back( ( subnetip >> 8 ) & 0xFF );
+							size++;
 							if ( nbits > 24 )
+							{
 								ret.push_back( subnetip & 0xFF );
+								size++;
+							}
 						}
 					}
 				}
 
-				uint32_t routerip = dns_lookup( subnet.c_str() );
+				uint32_t routerip = dns_lookup( router.c_str() );
 				ret.append( std::string( reinterpret_cast<const char*>(&routerip), 4 ) );
+				size += 4;
 				break;
 			}
 
