@@ -221,15 +221,33 @@ int safemain( int argc, char *argv[] )
 		if ( command.size() > 4 || command.size() < 3 )
 			error( "Command 'replace-host' needs 2 or 3 arguments: replace-host <ip> [<new_ip>] <mac>" );
 
+		// Remove the old host
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		removeHost( ip );
+		uint32_t oldip = ip;
 
+		// Add the new host
 		if ( command.size() == 4 )
 			ip = dns_lookup( command[2].c_str() );
 		std::string mac = parse_mac( command.back() );
 		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
-		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, ':' ) ) << std::endl;
 
+		// Release any leases that are no longer valid
+		std::vector<uint32_t> newips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ) ); 
+		std::vector<std::string> macs = getMACAddresses( ip );
+
+		std::vector< std::tuple<uint32_t, std::string, std::string> > leases;
+		getAllLeases( leases );
+
+		for ( auto l: leases )
+		{
+			bool gotip = std::find( newips.begin(), newips.end(), std::get<0>( l ) ) != newips.end();
+			bool gotmac = std::find( macs.begin(), macs.end(), std::get<1>( l ) ) == macs.end();
+			if ( gotip != gotmac )
+				releaseLease( std::get<0>( l ), reinterpret_cast<const uint8_t *>( std::get<1>( l ).c_str() ) );
+		}
+
+		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, ':' ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "remove-host" )
