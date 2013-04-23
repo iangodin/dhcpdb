@@ -372,7 +372,7 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 	std::string query = format(
 		"INSERT IGNORE INTO dhcp_lease ( ip_addr, mac_addr, expiration ) "
 			"VALUES( {0}, x'{1,B16,f0,w2}', 0 )",
-		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
+		ntohl( ip ), as_hex<uint8_t>( hwaddr, 6 ), time );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 	{
@@ -383,7 +383,7 @@ bool acquireLease( uint32_t ip, const uint8_t *hwaddr, uint32_t time )
 	query = format( "UPDATE dhcp_lease "
 			"SET expiration=TIMESTAMPADD( SECOND, {2}, NOW() ), mac_addr=x'{1,B16,f0,w2}' "
 			"WHERE ip_addr = {0} AND ( mac_addr = x'{1,B16,f0,w2}' OR expiration <= NOW() )",
-		ntohl( ip ), as_hex<uint8_t>(hwaddr,6), time );
+		ntohl( ip ), as_hex<uint8_t>( hwaddr, 6 ), time );
 
 	if ( mysql_query( db, query.c_str() ) != 0 )
 	{
@@ -417,7 +417,7 @@ bool releaseLease( uint32_t ip, const uint8_t *hwaddr )
 	{
 		query = format( "DELETE FROM dhcp_lease "
 			"WHERE ip_addr = {0} AND mac_addr = x'{1,B16,f0,w2}'",
-		ntohl( ip ), as_hex<uint8_t>(hwaddr) );
+		ntohl( ip ), as_hex<uint8_t>( hwaddr, 6 ) );
 	}
 	else
 		query = format( "DELETE FROM dhcp_lease " "WHERE ip_addr = {0}", ntohl( ip ) );
