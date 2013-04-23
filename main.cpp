@@ -212,7 +212,7 @@ int safemain( int argc, char *argv[] )
 		uint32_t ip = dns_lookup( command[1].c_str() );
 		std::string mac = parse_mac( command[2] );
 		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
-		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, '-' ) ) << std::endl;
+		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, ':' ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "replace-host" )
@@ -228,7 +228,7 @@ int safemain( int argc, char *argv[] )
 			ip = dns_lookup( command[2].c_str() );
 		std::string mac = parse_mac( command.back() );
 		addHost( ip, reinterpret_cast<const uint8_t*>( mac.data() ) );
-		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, '-' ) ) << std::endl;
+		std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( ip ), ip_lookup( ip ), as_hex<char>( mac, ':' ) ) << std::endl;
 
 		threadStopBackend();
 	}
@@ -252,7 +252,7 @@ int safemain( int argc, char *argv[] )
 		std::vector< std::tuple<uint32_t,std::string,std::string> > leases;
 		getAllLeases( leases );
 		for ( auto l: leases )
-			std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}\t{3}", ip_string( std::get<0>( l ) ), ip_lookup( std::get<0>( l ) ), as_hex<char>( std::get<1>( l ), '-' ), std::get<2>( l ) ) << std::endl;
+			std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}\t{3}", ip_string( std::get<0>( l ) ), ip_lookup( std::get<0>( l ) ), as_hex<char>( std::get<1>( l ), ':' ), std::get<2>( l ) ) << std::endl;
 
 		threadStopBackend();
 	}
@@ -286,14 +286,14 @@ int safemain( int argc, char *argv[] )
 			for ( size_t i = 0; i < ips.size(); ++i )
 				std::cout << as_hex<uint8_t>( reinterpret_cast<uint8_t*>(&ips[i]), 4, '.' ) << std::endl;
 			if ( ips.empty() )
-				std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, '-' ) ) << std::endl;
+				std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, ':' ) ) << std::endl;
 		}
 		else
 		{
 			std::vector< std::pair<uint32_t,std::string> > hosts;
 			getAllHosts( hosts );
 			for ( auto h: hosts )
-				std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( h.first ), ip_lookup( h.first ), as_hex<char>( h.second, '-' ) ) << std::endl;
+				std::cout << format( "{0}\t{1}\t{2,B16,w2,f0}", ip_string( h.first ), ip_lookup( h.first ), as_hex<char>( h.second, ':' ) ) << std::endl;
 		}
 
 		threadStopBackend();
@@ -309,7 +309,7 @@ int safemain( int argc, char *argv[] )
 		for ( size_t i = 0; i < ips.size(); ++i )
 			std::cout << ip_lookup( ips[i] ) << std::endl;
 		if ( ips.empty() )
-			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, '-' ) ) << std::endl;
+			std::cout << format( "no addresses found for {0,B16,w2,f0}", as_hex<char>( mac, ':' ) ) << std::endl;
 		threadStopBackend();
 	}
 	else if ( command[0] == "decode" )
