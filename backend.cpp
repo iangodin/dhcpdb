@@ -226,6 +226,43 @@ std::vector<uint32_t> getIPAddresses( const uint8_t *hwaddr, bool avail )
 
 ////////////////////////////////////////
 
+std::vector<std::string> getMACAddresses( uint32_t ip )
+{
+	std::unique_lock<std::mutex> lock( db_mutex );
+	MYSQL *db = dbs[std::this_thread::get_id()];
+	lock.unlock();
+
+	std::string query;
+	query = format (
+		"SELECT mac_addr FROM dhcp_host "
+			"WHERE ip_addr={0} "
+			"ORDER BY mac_addr DESC, dhcp_host.ip_addr ASC",
+		ntohl( ip ) );
+
+	if ( mysql_query( db, query.c_str() ) != 0 )
+		error( format( "Error querying mysql: {0}", mysql_error( db ) ) );
+
+	MYSQL_RES *result = mysql_store_result( db );
+	auto freeres = make_guard( [=](){ mysql_free_result( result ); } );
+
+	if ( result == NULL )
+		error( format( "Error storing result from mysql: {0}", mysql_error( db ) ) );
+
+	std::vector<std::string> ret;
+
+	MYSQL_ROW row;
+	while ( ( row = mysql_fetch_row( result ) ) )
+	{
+		unsigned long *lengths = mysql_fetch_lengths( result );
+		if ( row != NULL && row[0] )
+			ret.emplace_back( row[0], lengths[0] );
+	}
+
+	return ret;
+}
+
+////////////////////////////////////////
+
 void getOptions( uint32_t ip, std::vector<std::string> &options )
 {
 	std::unique_lock<std::mutex> lock( db_mutex );

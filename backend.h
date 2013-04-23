@@ -45,6 +45,7 @@ void getAllOptions( std::vector< std::tuple<uint32_t, uint32_t, std::string> > &
 
 // Get IP addresses for the given MAC address.
 std::vector<uint32_t> getIPAddresses( const uint8_t *mac, bool avail = false );
+std::vector<std::string> getMACAddresses( uint32_t ip );
 
 // Get the DHCP options for the given IP.
 void getOptions( uint32_t ip, std::vector<std::string> &options );
