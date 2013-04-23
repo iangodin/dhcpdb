@@ -234,7 +234,7 @@ int safemain( int argc, char *argv[] )
 
 		// Release any leases that are no longer valid
 		std::vector<uint32_t> newips = getIPAddresses( reinterpret_cast<const uint8_t*>( mac.data() ) ); 
-		std::vector<std::string> macs = getMACAddresses( ip );
+		std::vector<std::string> newmacs = getMACAddresses( ip );
 
 		std::vector< std::tuple<uint32_t, std::string, std::string> > leases;
 		getAllLeases( leases );
@@ -242,7 +242,7 @@ int safemain( int argc, char *argv[] )
 		for ( auto l: leases )
 		{
 			bool gotip = std::find( newips.begin(), newips.end(), std::get<0>( l ) ) != newips.end();
-			bool gotmac = std::find( macs.begin(), macs.end(), std::get<1>( l ) ) == macs.end();
+			bool gotmac = std::find( newmacs.begin(), newmacs.end(), std::get<1>( l ) ) != newmacs.end();
 			if ( gotip != gotmac )
 				releaseLease( std::get<0>( l ), reinterpret_cast<const uint8_t *>( std::get<1>( l ).c_str() ) );
 		}
