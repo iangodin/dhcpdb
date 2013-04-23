@@ -448,11 +448,14 @@ void handleClientRequest( packet *p, uint32_t server_addr, packet_queue &queue )
 			break;
 
 		case DHCP_RELEASE:
+			syslog( LOG_INFO, "Got RELEASE from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 			if ( server == server_addr )
 			{
-				syslog( LOG_INFO, "Got RELEASE from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
+				syslog( LOG_INFO, "Lease released from '%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x'", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5] );
 				releaseLease( p->yiaddr, hwaddr );
 			}
+			else
+				syslog( LOG_INFO, "Ignoring release for server %s", ip_lookup( server ).c_str() );
 			break;
 
 		case DHCP_INFORM:
